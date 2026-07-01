@@ -1,5 +1,5 @@
 // Quest 404 Caching Service Worker
-const CACHE_NAME = 'quest404-v1.1';
+const CACHE_NAME = 'quest404-v1.2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
