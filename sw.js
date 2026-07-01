@@ -72,9 +72,11 @@ self.addEventListener('fetch', (e) => {
         });
         return response;
       })
-      .catch(() => {
+      .catch(async () => {
         // Fallback to cache if network fails
-        return caches.match(e.request);
+        const cached = await caches.match(e.request);
+        if (cached) return cached;
+        return new Response('Network request failed', { status: 408 });
       })
   );
 });
