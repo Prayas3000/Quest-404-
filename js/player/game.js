@@ -74,31 +74,62 @@ export function switchScreen(screenId) {
 }
 
 let playerSubscription = null;
+let sessionSubscription = null;
+let routeSubscription = null;
 
-// Initialize real-time updates for unassigned players
+// Initialize real-time updates for players waiting on assignment or game start
 function initRealtimeSubscription() {
-  if (playerSubscription) return; // Already listening
-
-  playerSubscription = supabase
-    .channel(`player-status-${gameState.player.id}`)
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'players',
-      filter: `id=eq.${gameState.player.id}`
-    }, async (payload) => {
-      console.log('Realtime player update:', payload.new);
-      if (payload.new.team_id) {
-        // Player has been assigned a team! Stop listener and refresh
-        if (playerSubscription) {
-          supabase.removeChannel(playerSubscription);
-          playerSubscription = null;
+  if (!playerSubscription && gameState.player && gameState.player.id) {
+    playerSubscription = supabase
+      .channel(`player-status-${gameState.player.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'players',
+        filter: `id=eq.${gameState.player.id}`
+      }, async (payload) => {
+        console.log('Realtime player update:', payload.new);
+        if (payload.new.team_id) {
+          showToast('Team assigned! Waiting for game to start...', 'success');
+          await refreshPlayerState(true);
         }
-        showToast('Team assigned! Initializing hunt module...', 'success');
+      })
+      .subscribe();
+  }
+
+  if (!sessionSubscription && gameState.session && gameState.session.id) {
+    sessionSubscription = supabase
+      .channel(`session-status-${gameState.session.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'sessions',
+        filter: `id=eq.${gameState.session.id}`
+      }, async (payload) => {
+        console.log('Realtime session update:', payload.new);
+        if (payload.new.status === 'active') {
+          showToast('Game started! Initializing hunt...', 'success');
+          await refreshPlayerState(true);
+        }
+      })
+      .subscribe();
+  }
+
+  if (!routeSubscription && gameState.player && gameState.player.id) {
+    routeSubscription = supabase
+      .channel(`player-routes-${gameState.player.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'player_routes',
+        filter: `player_id=eq.${gameState.player.id}`
+      }, async (payload) => {
+        console.log('Realtime route inserted:', payload.new);
+        showToast('Route generated! Starting game...', 'success');
         await refreshPlayerState(true);
-      }
-    })
-    .subscribe();
+      })
+      .subscribe();
+  }
 }
 
 // Load current state from Supabase definer RPC function
@@ -122,33 +153,69 @@ export async function refreshPlayerState(showLoader = false) {
     document.getElementById('player-profile-name').innerText = gameState.player.player_name;
     document.getElementById('player-profile-team').innerText = gameState.player.team_name;
 
-    // Check session status
+    // PRIORITY 1: Unassigned players always go to waiting screen
+    // This must be checked BEFORE session status to avoid showing "Quest Resolved" to new registrants
+    if (gameState.player.team_name === 'Unassigned') {
+      if (playerSubscription) { supabase.removeChannel(playerSubscription); playerSubscription = null; }
+      if (sessionSubscription) { supabase.removeChannel(sessionSubscription); sessionSubscription = null; }
+      if (routeSubscription) { supabase.removeChannel(routeSubscription); routeSubscription = null; }
+      switchScreen('screen-waiting');
+      initRealtimeSubscription();
+      return;
+    }
+
+    // PRIORITY 2: Session is completed — game is over for real players
     if (gameState.session.status === 'completed') {
+      if (playerSubscription) { supabase.removeChannel(playerSubscription); playerSubscription = null; }
+      if (sessionSubscription) { supabase.removeChannel(sessionSubscription); sessionSubscription = null; }
+      if (routeSubscription) { supabase.removeChannel(routeSubscription); routeSubscription = null; }
       showToast('This event has already concluded.', 'info');
       switchScreen('screen-completed');
       return;
     }
 
-    // Start timer synchronization
-    syncTimer();
-
-    // Check if player is unassigned to a team
-    if (gameState.player.team_name === 'Unassigned') {
+    // PRIORITY 3: Session is draft — game hasn't started yet
+    if (gameState.session.status === 'draft') {
       switchScreen('screen-waiting');
       initRealtimeSubscription();
       return;
     }
+
+    // --- Session is ACTIVE from here ---
+
+    // Start timer synchronization
+    syncTimer();
 
     // Load Checkpoints list to find ordering / total count
     await loadSessionCheckpoints();
 
     // Branch screen rendering
     if (!gameState.player.current_checkpoint_id) {
-      // Completed all checkpoints!
+      // Check if player actually has any routes assigned
+      const hasRoutes = gameState.allCheckpoints.some(c => c.route_order !== null);
+      if (!hasRoutes) {
+        // No routes generated for this player yet — keep waiting
+        switchScreen('screen-waiting');
+        initRealtimeSubscription();
+        return;
+      }
+      
+      // Clean up subscriptions since active gameplay setup is complete
+      if (playerSubscription) { supabase.removeChannel(playerSubscription); playerSubscription = null; }
+      if (sessionSubscription) { supabase.removeChannel(sessionSubscription); sessionSubscription = null; }
+      if (routeSubscription) { supabase.removeChannel(routeSubscription); routeSubscription = null; }
+
+      // Has routes but no current checkpoint = completed all checkpoints!
       await showGameCompletion();
     } else {
       // Fetch details of current checkpoint
       await loadCurrentCheckpointDetails();
+
+      // Clean up subscriptions since active gameplay setup is complete
+      if (playerSubscription) { supabase.removeChannel(playerSubscription); playerSubscription = null; }
+      if (sessionSubscription) { supabase.removeChannel(sessionSubscription); sessionSubscription = null; }
+      if (routeSubscription) { supabase.removeChannel(routeSubscription); routeSubscription = null; }
+
       switchScreen('screen-hint');
     }
   } catch (err) {

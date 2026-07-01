@@ -337,6 +337,12 @@
           return;
         }
 
+        // 1b. Block registration for completed sessions
+        if (session.status === 'completed') {
+          showToast('This session has already ended. Ask the organizer to reset it first.', 'error');
+          return;
+        }
+
         // 2. Generate a secure random access token: PL-XXXX-XXXX
         const tokenPart1 = Math.floor(1000 + Math.random() * 9000);
         const tokenPart2 = Math.floor(1000 + Math.random() * 9000);

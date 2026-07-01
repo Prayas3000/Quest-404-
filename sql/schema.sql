@@ -406,20 +406,20 @@ create policy admin_all_player_answers on player_answers for all to authenticate
 create policy admin_all_checkpoint_questions on player_checkpoint_questions for all to authenticated using (true) with check (true);
 
 -- Public / Anonymous Policies
--- 1. Sessions: Anonymous can read active / completed sessions
+-- 1. Sessions: Anonymous can read draft / active / completed sessions
 create policy anon_read_sessions on sessions for select to anon 
-  using (status in ('active', 'completed'));
+  using (status in ('draft', 'active', 'completed'));
 
 -- 2. Teams: Anonymous can read teams
 create policy anon_read_teams on teams for select to anon using (true);
 
--- 3. Checkpoints: Anonymous can read checkpoints of active/completed sessions
+-- 3. Checkpoints: Anonymous can read checkpoints of draft/active/completed sessions
 create policy anon_read_checkpoints on checkpoints for select to anon 
-  using (session_id in (select id from sessions where status in ('active', 'completed')));
+  using (session_id in (select id from sessions where status in ('draft', 'active', 'completed')));
 
--- 4. Players: Anonymous can read player entries of active/completed sessions
+-- 4. Players: Anonymous can read player entries of draft/active/completed sessions
 create policy anon_read_players on players for select to anon 
-  using (session_id in (select id from sessions where status in ('active', 'completed')));
+  using (session_id in (select id from sessions where status in ('draft', 'active', 'completed')));
 
 -- 4b. Players: Anonymous can insert player entries for self-registration
 create policy anon_insert_players on players for insert to anon with check (true);

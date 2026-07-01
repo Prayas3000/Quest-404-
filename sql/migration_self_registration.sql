@@ -18,9 +18,9 @@ ALTER TABLE players ALTER COLUMN session_id SET NOT NULL;
 DROP POLICY IF EXISTS anon_read_players ON players;
 DROP POLICY IF EXISTS anon_insert_players ON players;
 
--- Public read policy based on session status
+-- Public read policy based on session status (allowing draft status for self-registration standby)
 CREATE POLICY anon_read_players ON players FOR SELECT TO anon 
-  USING (session_id IN (SELECT id FROM sessions WHERE status IN ('active', 'completed')));
+  USING (session_id IN (SELECT id FROM sessions WHERE status IN ('draft', 'active', 'completed')));
 
 -- Allow players to register themselves (insert)
 CREATE POLICY anon_insert_players ON players FOR INSERT TO anon WITH CHECK (true);
