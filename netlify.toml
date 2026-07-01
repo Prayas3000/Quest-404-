@@ -1,3 +1,7 @@
+[build]
+  command = "node inject-env.js"
+  publish = "."
+
 [[headers]]
   for = "/*"
   [headers.values]
