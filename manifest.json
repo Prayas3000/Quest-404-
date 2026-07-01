@@ -1,0 +1,22 @@
+{
+  "short_name": "Quest404",
+  "name": "Quest 404 — Scavenger Hunt",
+  "description": "Campus scavenger hunt game with cybersecurity and mathematical challenge loops.",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/index.html",
+  "background_color": "#06060c",
+  "theme_color": "#00ff88",
+  "display": "standalone",
+  "orientation": "portrait"
+}

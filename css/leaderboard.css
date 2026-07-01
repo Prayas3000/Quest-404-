@@ -1,0 +1,121 @@
+/* --- Leaderboard Spectator Styling --- */
+
+/* Header Nav */
+.leaderboard-header {
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-color);
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.leaderboard-header .logo {
+  font-family: var(--font-title);
+  font-weight: 900;
+  color: var(--text-dark);
+  font-size: 1.4rem;
+  letter-spacing: 2px;
+}
+
+/* Container */
+.leaderboard-container {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+/* Podium Pedestals */
+.podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 3.5rem;
+  height: 320px;
+  padding-bottom: 1rem;
+}
+
+@media (max-width: 600px) {
+  .podium {
+    flex-direction: column;
+    height: auto;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .podium-col {
+    height: auto !important;
+  }
+  
+  .podium-block {
+    display: none !important;
+  }
+}
+
+.podium-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 220px;
+  transition: transform var(--transition-normal);
+}
+
+.podium-col:hover {
+  transform: translateY(-5px);
+}
+
+.podium-badge {
+  font-size: 2.25rem;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 0 4px rgba(34, 167, 196, 0.1));
+}
+
+.podium-card {
+  width: 100%;
+  padding: 1.25rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  z-index: 2;
+  background: #ffffff;
+}
+
+.podium-team-name {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.podium-stats {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.podium-block {
+  width: 100%;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  background: linear-gradient(180deg, rgba(34, 167, 196, 0.04) 0%, rgba(255, 255, 255, 0.9) 100%);
+}
+
+/* Pedestal Height scales */
+.podium-col--first { height: 100%; }
+.podium-col--first .podium-block { height: 130px; border-color: var(--border-neon-primary); }
+
+.podium-col--second { height: 85%; }
+.podium-col--second .podium-block { height: 90px; border-color: var(--border-neon-secondary); }
+
+.podium-col--third { height: 70%; }
+.podium-col--third .podium-block { height: 50px; border-color: var(--border-neon-accent); }

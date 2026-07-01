@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quest 404 — Active Hunt</title>
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/player.css">
+</head>
+<body>
+  <div class="scanlines"></div>
+
+  <!-- --- Header / telemetry bar --- -->
+  <header class="player-header">
+    <div class="flex flex-col">
+      <span class="player-name" id="player-profile-name">Loading Profile...</span>
+      <span class="player-team" id="player-profile-team">No Team</span>
+    </div>
+    <div class="timer-badge">
+      <span id="player-timer">00:00</span>
+    </div>
+  </header>
+
+  <main class="player-container">
+
+    <!-- Screen 1: Access Verification / Loader (shown during data fetch) -->
+    <section id="screen-loader" class="screen">
+      <div class="card card--primary text-center">
+        <h3 class="text-primary glow-text-primary" style="margin-bottom: 1rem;">SECURE CONNECTION</h3>
+        <div class="terminal-loader">
+          <div class="loader-bar"></div>
+        </div>
+        <p class="font-mono text-muted" style="font-size: 0.75rem; margin-top: 1rem;">
+          Authenticating access token encryption keys...
+        </p>
+      </div>
+    </section>
+
+    <!-- Screen 1.5: Waiting for Team/Route Assignment -->
+    <section id="screen-waiting" class="screen">
+      <div class="card card--primary text-center" style="padding: 2.5rem 1.5rem;">
+        <div class="waiting-icon" style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+        <h2 class="text-primary" style="border: none; margin-bottom: 0.5rem;">REGISTRATION SECURED</h2>
+        <p class="subtitle" style="font-size: 0.9rem; margin-bottom: 2rem; color: var(--color-primary);">
+          Waiting for organizer to assign team and generate route...
+        </p>
+        <div class="terminal-loader" style="margin-top: 1rem;">
+          <div class="loader-bar"></div>
+        </div>
+        <p class="font-mono text-muted" style="font-size: 0.75rem; margin-top: 1.5rem;">
+          Do not close this page. The console will initialize automatically.
+        </p>
+      </div>
+    </section>
+
+    <!-- Screen 2: Checkpoint Hint + Scanner View (DEFAULT) -->
+    <section id="screen-hint" class="screen active">
+      <div class="card card--secondary">
+        <div class="checkpoint-header flex justify-between align-center">
+          <span class="badge badge--info" id="hint-cp-number">Checkpoint 1</span>
+          <span class="badge badge--outline" id="hint-cp-total">1 / 5</span>
+        </div>
+        
+        <h3 style="margin: 1.5rem 0 0.5rem 0; color: var(--text-dark);">📍 Location Decrypt</h3>
+        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1.5rem;">
+          Analyze the decrypted transmission string to locate your next scan node.
+        </p>
+
+        <div class="hint-terminal font-mono" id="checkpoint-hint-box">
+          // Hint loading...
+        </div>
+
+        <button class="btn btn--secondary" id="btn-open-scanner" style="width: 100%; margin-top: 2rem;">
+          <span>📷 SCAN CHECKPOINT QR</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Screen 3: QR Scanner View -->
+    <section id="screen-scanner" class="screen">
+      <div class="card card--primary" style="padding: 1rem;">
+        <div class="flex justify-between align-center" style="margin-bottom: 1rem;">
+          <h3 style="color: var(--text-dark);">📸 Scan Node</h3>
+          <button class="btn btn--outline btn--sm" id="btn-close-scanner">Cancel</button>
+        </div>
+        
+        <div id="qr-reader-container" style="border: 1px solid var(--border-neon-primary); border-radius: var(--radius-sm); overflow: hidden; background: #000;">
+          <div id="qr-reader" style="width:100%;"></div>
+        </div>
+
+        <div class="font-mono text-muted text-center" style="font-size: 0.75rem; margin-top: 1rem;">
+          Center the checkpoint QR code in the viewport.
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 4: Questions Challenge View -->
+    <section id="screen-questions" class="screen">
+      <div class="card card--accent">
+        <div class="flex justify-between align-center" style="margin-bottom: 1rem;">
+          <span class="badge badge--danger" id="quiz-cp-name">Checkpoint Node</span>
+          <span class="font-mono text-muted" id="quiz-questions-count" style="font-size: 0.8rem;">0 answered</span>
+        </div>
+
+        <h3 style="margin-bottom: 1.5rem; color: var(--text-dark);">🛡️ Challenge Block</h3>
+
+        <form id="quiz-form">
+          <div id="quiz-questions-list">
+            <!-- Question templates injected here -->
+          </div>
+
+          <button type="submit" class="btn btn--accent" style="width: 100%; margin-top: 1.5rem;">
+            <span>TRANSMIT ANSWERS</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Screen 5: Game Completion View -->
+    <section id="screen-completed" class="screen">
+      <div class="card card--primary text-center" style="padding: 2.5rem 1.5rem;">
+        <div class="victory-icon" style="font-size: 3rem; margin-bottom: 1rem;">🏆</div>
+        <h2 class="text-primary glow-text-primary" style="border: none; margin-bottom: 0.5rem;">QUEST RESOLVED</h2>
+        <p class="subtitle" style="font-size: 0.9rem; margin-bottom: 2rem; color: var(--color-secondary);">
+          Transmission loop completed. System offline.
+        </p>
+
+        <div class="card font-mono" style="text-align: left; background: rgba(0, 180, 216, 0.03); border-color: var(--border-color); margin-bottom: 2rem; font-size: 0.85rem;">
+          <div class="flex justify-between" style="border-bottom: 1px dashed var(--border-color); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+            <span>Status:</span> <span class="text-primary">FINISHED</span>
+          </div>
+          <div class="flex justify-between" style="border-bottom: 1px dashed var(--border-color); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+            <span>Scored points:</span> <span class="text-secondary" id="summary-score">0 pts</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Standings:</span> <a href="leaderboard.html" class="text-accent" style="text-decoration: underline;">View Standings</a>
+          </div>
+        </div>
+
+        <p class="text-muted" style="font-size: 0.8rem;">
+          Thank you for participating. Check the scoreboard for the final ranking announcements.
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- External libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <!-- Player scripts -->
+  <script type="module" src="js/player/game.js"></script>
+</body>
+</html>

@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quest 404 — Control Center</title>
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <div class="scanlines"></div>
+
+  <!-- --- Auth Portal Guard --- -->
+  <div id="auth-portal" class="hero-container" style="display: flex;">
+    <div class="card card--accent main-form" style="max-width: 400px; width: 90%;">
+      <h2 class="text-center text-accent" style="border: none; margin-bottom: 0.5rem;">ACCESS REQUIRED</h2>
+      <p class="text-center text-muted" style="font-size: 0.8rem; margin-bottom: 1.5rem;">
+        Decrypt administrative credentials to access console controls.
+      </p>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-email">Admin Email</label>
+          <input type="email" id="login-email" class="input font-mono" placeholder="admin@quest404.net" required>
+        </div>
+        <div class="form-group">
+          <label for="login-password">Decryption Key</label>
+          <input type="password" id="login-password" class="input font-mono" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn--accent" style="width: 100%; margin-top: 1rem;">
+          <span>DECRYPT & ENTER</span>
+        </button>
+      </form>
+      <div class="text-center" style="margin-top: 1.5rem;">
+        <a href="index.html" class="text-muted" style="font-size: 0.8rem;">← Return to Main Console</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- --- Main Admin Dashboard App --- -->
+  <div id="dashboard-app" class="admin-wrapper" style="display: none;">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">QUEST 404</div>
+        <div class="logo-subtitle">CONTROL CONSOLE</div>
+      </div>
+      
+      <nav class="sidebar-menu">
+        <button class="nav-item active" data-tab="dashboard">
+          <span class="nav-icon">📊</span> Live telemetry
+        </button>
+        <button class="nav-item" data-tab="sessions">
+          <span class="nav-icon">⚙️</span> Game Sessions
+        </button>
+        <button class="nav-item" data-tab="teams">
+          <span class="nav-icon">👥</span> Team Roster
+        </button>
+        <button class="nav-item" data-tab="players">
+          <span class="nav-icon">👤</span> Player Linker
+        </button>
+        <button class="nav-item" data-tab="checkpoints">
+          <span class="nav-icon">📍</span> Checkpoints
+        </button>
+        <button class="nav-item" data-tab="questions">
+          <span class="nav-icon">❓</span> Question Bank
+        </button>
+        <button class="nav-item" data-tab="routes">
+          <span class="nav-icon">🗺️</span> Route Matrix
+        </button>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="admin-profile" id="admin-user-display">admin@quest404.net</div>
+        <button id="logout-btn" class="btn btn--outline btn--sm" style="width: 100%; margin-top: 0.5rem; font-size: 0.75rem;">
+          TERMINATE SESSION
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="content-pane">
+      <header class="content-header">
+        <h2 id="current-tab-title" class="text-secondary" style="border: none; margin: 0;">Live Telemetry</h2>
+        <div class="active-session-badge flex align-center">
+          <span class="badge badge--warning" id="active-session-indicator">NO ACTIVE SESSION</span>
+          <span class="font-mono text-muted" id="active-session-name" style="font-size: 0.85rem;"></span>
+        </div>
+      </header>
+
+      <div class="tab-content-container">
+        
+        <!-- Tab 1: Dashboard -->
+        <section id="tab-dashboard" class="tab-pane active">
+          <!-- Real-time Stats Grid -->
+          <div class="grid grid-cols-3" style="margin-bottom: 2rem;">
+            <div class="card card--primary">
+              <span class="text-muted font-mono" style="font-size: 0.8rem; text-transform: uppercase;">Time Elapsed</span>
+              <div class="font-mono text-primary" id="dash-timer" style="font-size: 2.25rem; font-weight: 700; margin-top: 0.5rem;">00:00:00</div>
+            </div>
+            <div class="card card--secondary">
+              <span class="text-muted font-mono" style="font-size: 0.8rem; text-transform: uppercase;">Active Players / Teams</span>
+              <div class="font-mono text-secondary" id="dash-players-count" style="font-size: 2.25rem; font-weight: 700; margin-top: 0.5rem;">0 / 0</div>
+            </div>
+            <div class="card card--accent">
+              <span class="text-muted font-mono" style="font-size: 0.8rem; text-transform: uppercase;">Total Score / Answers</span>
+              <div class="font-mono text-accent" id="dash-answers-count" style="font-size: 2.25rem; font-weight: 700; margin-top: 0.5rem;">0 / 0</div>
+            </div>
+          </div>
+
+          <!-- Active Game Status View -->
+          <div class="grid grid-cols-2">
+            <!-- Team Rankings -->
+            <div class="card card--secondary">
+              <h3 style="margin-bottom: 1rem;">🏆 Team Standings</h3>
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Team Name</th>
+                      <th>Correct / Submissions</th>
+                      <th>Checkpoints Completed</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dash-rankings-table">
+                    <tr><td colspan="4" class="text-center text-muted">No sessions active</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Player Status Table -->
+            <div class="card card--primary">
+              <h3 style="margin-bottom: 1rem;">🛰️ Player Tracker</h3>
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Player</th>
+                      <th>Team</th>
+                      <th>Current Checkpoint</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dash-players-table">
+                    <tr><td colspan="4" class="text-center text-muted">No telemetry received</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 2: Sessions -->
+        <section id="tab-sessions" class="tab-pane">
+          <div class="action-header flex justify-between align-center" style="margin-bottom: 1.5rem;">
+            <p class="text-muted">Create, edit, and launch game sessions.</p>
+            <button class="btn btn--primary btn--sm" id="btn-create-session">+ CREATE SESSION</button>
+          </div>
+          
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Session ID</th>
+                  <th>Title</th>
+                  <th>Duration (Mins)</th>
+                  <th>Route Mode</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="sessions-table-body">
+                <!-- Session list will be injected here -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Tab 3: Teams -->
+        <section id="tab-teams" class="tab-pane">
+          <div class="action-header flex justify-between align-center" style="margin-bottom: 1.5rem;">
+            <div class="form-group" style="margin: 0; min-width: 250px;">
+              <select id="team-session-select" class="select font-mono">
+                <option value="">Select Session...</option>
+              </select>
+            </div>
+            <button class="btn btn--primary btn--sm" id="btn-create-team" disabled>+ CREATE TEAM</button>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Team ID</th>
+                  <th>Team Name</th>
+                  <th>Members</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="teams-table-body">
+                <tr><td colspan="4" class="text-center text-muted">Select a session to load teams</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Tab 4: Players -->
+        <section id="tab-players" class="tab-pane">
+          <div class="action-header flex justify-between align-center" style="margin-bottom: 1.5rem;">
+            <div class="flex" style="gap: 1rem; width: 65%;">
+              <select id="player-session-select" class="select font-mono" style="width: 45%;">
+                <option value="">Select Session...</option>
+              </select>
+              <button class="btn btn--secondary btn--sm" id="btn-auto-distribute" style="white-space: nowrap;" disabled>
+                ⚡ AUTO-DISTRIBUTE UNASSIGNED
+              </button>
+            </div>
+            <button class="btn btn--primary btn--sm" id="btn-add-player" disabled>+ ADD PLAYER (MANUAL)</button>
+          </div>
+
+          <!-- Pending Assignments Sub-panel -->
+          <div class="card card--accent" id="unassigned-players-card" style="margin-bottom: 2rem; display: none;">
+            <h3 class="text-accent" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+              ⏳ Unassigned Players Pending Team Placement
+            </h3>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Player Name</th>
+                    <th>Registered At</th>
+                    <th>Place in Team</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="unassigned-players-table-body">
+                  <tr><td colspan="4" class="text-center text-muted">No pending player registrations</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- All Roster / Assigned Players -->
+          <div class="card card--secondary">
+            <h3 style="margin-bottom: 1rem;">👥 Assigned Player Directory</h3>
+            
+            <div class="form-group" style="max-width: 300px; margin-bottom: 1rem;">
+              <label for="player-team-select">Filter by Team</label>
+              <select id="player-team-select" class="select font-mono" disabled>
+                <option value="">All Teams / Load Session First...</option>
+              </select>
+            </div>
+
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Player Name</th>
+                    <th>Assigned Team</th>
+                    <th>Access Link</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="players-table-body">
+                  <tr><td colspan="4" class="text-center text-muted">Select a session to load player list</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 5: Checkpoints -->
+        <section id="tab-checkpoints" class="tab-pane">
+          <div class="action-header flex justify-between align-center" style="margin-bottom: 1.5rem;">
+            <div class="form-group" style="margin: 0; min-width: 250px;">
+              <select id="checkpoint-session-select" class="select font-mono">
+                <option value="">Select Session...</option>
+              </select>
+            </div>
+            <button class="btn btn--primary btn--sm" id="btn-create-checkpoint" disabled>+ CREATE CHECKPOINT</button>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Checkpoint Name</th>
+                  <th>Hint</th>
+                  <th>QR Identifier</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="checkpoints-table-body">
+                <tr><td colspan="4" class="text-center text-muted">Select a session to load checkpoints</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Tab 6: Questions -->
+        <section id="tab-questions" class="tab-pane">
+          <div class="action-header flex justify-between align-center" style="margin-bottom: 1.5rem;">
+            <div class="flex" style="gap: 1rem; width: 60%;">
+              <select id="question-topic-filter" class="select font-mono" style="width: 50%;">
+                <option value="">All Topics</option>
+                <option value="cybersecurity">Cybersecurity</option>
+                <option value="mathematics">Mathematics</option>
+              </select>
+              <select id="question-difficulty-filter" class="select font-mono" style="width: 50%;">
+                <option value="">All Difficulties</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+            <button class="btn btn--primary btn--sm" id="btn-create-question">+ CREATE QUESTION</button>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Topic</th>
+                  <th>Difficulty</th>
+                  <th>Type</th>
+                  <th>Question Text</th>
+                  <th>Correct Answer</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="questions-table-body">
+                <!-- Question list injected dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Tab 7: Routes -->
+        <section id="tab-routes" class="tab-pane">
+          <div class="action-header flex justify-between align-center" style="margin-bottom: 1.5rem;">
+            <div class="form-group" style="margin: 0; min-width: 250px;">
+              <select id="route-session-select" class="select font-mono">
+                <option value="">Select Session...</option>
+              </select>
+            </div>
+            <button class="btn btn--secondary btn--sm" id="btn-generate-routes" disabled>⚡ AUTO-GENERATE ROUTES</button>
+          </div>
+
+          <div class="grid grid-cols-2">
+            <!-- Route matrix view -->
+            <div class="card card--secondary">
+              <h3 style="margin-bottom: 1rem;">🗺️ Route Assignment Matrix</h3>
+              <div id="route-matrix-container">
+                <p class="text-muted text-center" style="padding: 2rem 0;">Select a session to configure routes</p>
+              </div>
+            </div>
+
+            <!-- Manual Route Configurator -->
+            <div class="card card--primary" id="manual-route-card" style="display: none;">
+              <h3 style="margin-bottom: 0.5rem;">🔧 Modify Route Order</h3>
+              <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 1.5rem;">
+                Select a player/team to customize their checkpoint visitation order.
+              </p>
+              
+              <div class="form-group">
+                <label for="route-player-select">Configure Player</label>
+                <select id="route-player-select" class="select font-mono"></select>
+              </div>
+
+              <div id="manual-route-sorter" style="display: flex; flex-direction: column; gap: 10px; margin-top: 1rem;">
+                <!-- Draggable/reorderable items loaded dynamically -->
+              </div>
+
+              <button class="btn btn--primary" id="btn-save-route" style="width: 100%; margin-top: 1.5rem;">
+                <span>COMMIT ROUTE ASSIGNMENT</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- --- MODALS --- -->
+
+  <!-- 1. Session CRUD Modal -->
+  <div class="modal-overlay" id="modal-session">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-session-title">Create Game Session</h3>
+        <button class="modal-close" onclick="closeModal('modal-session')">&times;</button>
+      </div>
+      <form id="form-session">
+        <input type="hidden" id="session-id-input">
+        <div class="form-group">
+          <label for="session-title">Session Name</label>
+          <input type="text" id="session-title" class="input" placeholder="e.g. Hackathon Scavenger Hunt 2026" required>
+        </div>
+        <div class="form-group">
+          <label for="session-duration">Session Duration (minutes)</label>
+          <input type="number" id="session-duration" class="input font-mono" value="60" min="5" max="300" required>
+        </div>
+        <div class="form-group">
+          <label for="session-route-mode">Route Generation Mode</label>
+          <select id="session-route-mode" class="select font-mono">
+            <option value="random">Random Shuffling (Default)</option>
+            <option value="manual">Manual Assignment</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="session-questions-per-checkpoint">Questions per Checkpoint</label>
+          <input type="number" id="session-questions-per-checkpoint" class="input font-mono" value="2" min="1" max="10" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn--outline" onclick="closeModal('modal-session')">Cancel</button>
+          <button type="submit" class="btn btn--primary">Save Session</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Team CRUD Modal -->
+  <div class="modal-overlay" id="modal-team">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Create Event Team</h3>
+        <button class="modal-close" onclick="closeModal('modal-team')">&times;</button>
+      </div>
+      <form id="form-team">
+        <input type="hidden" id="team-id-input">
+        <div class="form-group">
+          <label for="team-name">Team Name</label>
+          <input type="text" id="team-name" class="input" placeholder="e.g. Cyber_Wolves" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn--outline" onclick="closeModal('modal-team')">Cancel</button>
+          <button type="submit" class="btn btn--primary">Save Team</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. Player CRUD Modal -->
+  <div class="modal-overlay" id="modal-player">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Add Team Player</h3>
+        <button class="modal-close" onclick="closeModal('modal-player')">&times;</button>
+      </div>
+      <form id="form-player">
+        <input type="hidden" id="player-id-input">
+        <div class="form-group">
+          <label for="player-name">Player Name</label>
+          <input type="text" id="player-name" class="input" placeholder="e.g. Alex Mercer" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn--outline" onclick="closeModal('modal-player')">Cancel</button>
+          <button type="submit" class="btn btn--primary">Save Player</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. Checkpoint CRUD Modal -->
+  <div class="modal-overlay" id="modal-checkpoint">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Add Checkpoint</h3>
+        <button class="modal-close" onclick="closeModal('modal-checkpoint')">&times;</button>
+      </div>
+      <form id="form-checkpoint">
+        <input type="hidden" id="checkpoint-id-input">
+        <div class="form-group">
+          <label for="checkpoint-name">Checkpoint Name</label>
+          <input type="text" id="checkpoint-name" class="input" placeholder="e.g. Checkpoint 1: Library Basement" required>
+        </div>
+        <div class="form-group">
+          <label for="checkpoint-hint">Location Hint</label>
+          <textarea id="checkpoint-hint" class="textarea" rows="3" placeholder="Where dust gathers and pages whisper in the dark..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="checkpoint-qr">QR Identifier (unique)</label>
+          <input type="text" id="checkpoint-qr" class="input font-mono" placeholder="e.g. lib_basement_9381" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn--outline" onclick="closeModal('modal-checkpoint')">Cancel</button>
+          <button type="submit" class="btn btn--primary">Save Checkpoint</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 5. Question CRUD Modal -->
+  <div class="modal-overlay" id="modal-question">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Manage Question</h3>
+        <button class="modal-close" onclick="closeModal('modal-question')">&times;</button>
+      </div>
+      <form id="form-question">
+        <input type="hidden" id="question-id-input">
+        
+        <div class="grid grid-cols-2">
+          <div class="form-group">
+            <label for="question-topic">Topic</label>
+            <select id="question-topic" class="select font-mono">
+              <option value="cybersecurity">Cybersecurity</option>
+              <option value="mathematics">Mathematics</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="question-difficulty">Difficulty</label>
+            <select id="question-difficulty" class="select font-mono">
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="question-type">Question Type</label>
+          <select id="question-type" class="select font-mono" onchange="toggleQuestionOptions()">
+            <option value="mcq">Multiple Choice Question (MCQ)</option>
+            <option value="text">Text Input Question</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="question-text">Question Prompt</label>
+          <textarea id="question-text" class="textarea" rows="3" placeholder="Enter the quiz question..." required></textarea>
+        </div>
+
+        <div id="options-config-group">
+          <div class="form-group">
+            <label>MCQ Options (One per field)</label>
+            <div class="grid grid-cols-2" style="gap: 10px;">
+              <input type="text" id="option-0" class="input option-field" placeholder="Option A">
+              <input type="text" id="option-1" class="input option-field" placeholder="Option B">
+              <input type="text" id="option-2" class="input option-field" placeholder="Option C">
+              <input type="text" id="option-3" class="input option-field" placeholder="Option D">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="question-answer" id="answer-field-label">Correct Option Index (0-3)</label>
+          <input type="text" id="question-answer" class="input font-mono" placeholder="e.g. 0 for Option A, or exact text for input types" required>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn--outline" onclick="closeModal('modal-question')">Cancel</button>
+          <button type="submit" class="btn btn--primary">Save Question</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 6. Print QR Modal (Displays generated QR code for printing) -->
+  <div class="modal-overlay" id="modal-qr-print">
+    <div class="modal" style="max-width: 450px; text-align: center;">
+      <div class="modal-header">
+        <h3 id="qr-print-title">Print Checkpoint QR</h3>
+        <button class="modal-close" onclick="closeModal('modal-qr-print')">&times;</button>
+      </div>
+      
+      <div class="printable-qr-area" id="printable-qr-area" style="padding: 2rem; background: white; border-radius: var(--radius-md); margin-bottom: 1.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem;">
+        <h2 id="qr-label-title" style="color: black; margin: 0; font-family: var(--font-title); font-size: 1.5rem;">CHECKPOINT</h2>
+        <div id="qr-code-graphic" style="padding: 10px; background: white;"></div>
+        <div id="qr-label-subtitle" style="color: #555; font-family: var(--font-mono); font-size: 0.8rem; word-break: break-all;"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn--outline" onclick="closeModal('modal-qr-print')">Close</button>
+        <button type="button" class="btn btn--secondary" onclick="printQR()">PRINT / SAVE PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- External Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+  <!-- Loader Coordinator -->
+  <script type="module" src="js/admin/admin.js"></script>
+
+  <!-- Global Modal Controls helper -->
+  <script>
+    window.openModal = function(id) {
+      document.getElementById(id).classList.add('active');
+    };
+    window.closeModal = function(id) {
+      document.getElementById(id).classList.remove('active');
+    };
+    window.toggleQuestionOptions = function() {
+      const type = document.getElementById('question-type').value;
+      const optsGroup = document.getElementById('options-config-group');
+      const label = document.getElementById('answer-field-label');
+      const ansField = document.getElementById('question-answer');
+
+      if (type === 'mcq') {
+        optsGroup.style.display = 'block';
+        label.innerText = 'Correct Option Index (0-3)';
+        ansField.placeholder = 'e.g. 0';
+        document.querySelectorAll('.option-field').forEach(el => el.setAttribute('required', 'true'));
+      } else {
+        optsGroup.style.display = 'none';
+        label.innerText = 'Correct Answer Text';
+        ansField.placeholder = 'e.g. cryptography';
+        document.querySelectorAll('.option-field').forEach(el => el.removeAttribute('required'));
+      }
+    };
+    window.printQR = function() {
+      const printContents = document.getElementById('printable-qr-area').innerHTML;
+      const originalContents = document.body.innerHTML;
+      
+      // Open print window
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print QR</title>
+            <style>
+              body {
+                font-family: 'Segoe UI', Arial, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin: 0;
+                text-align: center;
+              }
+              h2 { font-size: 2rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 2px; }
+              #qr-code-graphic { margin: 2rem 0; }
+              #qr-label-subtitle { font-family: monospace; font-size: 0.9rem; color: #666; }
+            </style>
+          </head>
+          <body onload="window.print(); window.close();">
+            ${printContents}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    };
+  </script>
+</body>
+</html>

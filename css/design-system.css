@@ -1,0 +1,196 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&display=swap');
+
+/* --- Quest 404 Sci-Fi White & Cyan Design System --- */
+
+:root {
+  /* Colors - Soft White & Muted Cyan Theme */
+  --bg-color: #f8fafc;           /* Near-white Slate */
+  --bg-card: rgba(255, 255, 255, 0.92); /* Opaque White */
+  --bg-card-hover: rgba(255, 255, 255, 1);
+  
+  --color-primary: #22a7c4;      /* Muted Cyan */
+  --color-primary-rgb: 34, 167, 196;
+  --color-secondary: #1a7a9e;    /* Teal */
+  --color-secondary-rgb: 26, 122, 158;
+  --color-accent: #dc4a4a;       /* Muted Red */
+  --color-accent-rgb: 220, 74, 74;
+  --color-warning: #d9930b;      /* Warm Amber */
+  --color-warning-rgb: 217, 147, 11;
+  
+  --text-main: #475569;          /* Slate 600 */
+  --text-muted: #94a3b8;         /* Slate 400 */
+  --text-dark: #1e293b;          /* Slate 800 */
+  
+  --border-color: rgba(34, 167, 196, 0.1);
+  --border-neon-primary: rgba(34, 167, 196, 0.2);
+  --border-neon-secondary: rgba(26, 122, 158, 0.2);
+  --border-neon-accent: rgba(220, 74, 74, 0.2);
+
+  /* Shadows & Glows (Very subtle) */
+  --glow-primary: 0 1px 6px rgba(34, 167, 196, 0.12);
+  --glow-secondary: 0 1px 6px rgba(26, 122, 158, 0.12);
+  --glow-accent: 0 1px 6px rgba(220, 74, 74, 0.12);
+  
+  /* Fonts */
+  --font-title: 'Orbitron', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Layout / Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --- Base Reset --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(34, 167, 196, 0.02) 0%, transparent 50%),
+    radial-gradient(circle at 90% 80%, rgba(26, 122, 158, 0.02) 0%, transparent 50%);
+  background-size: 100% 100%, 100% 100%;
+  min-height: 100vh;
+}
+
+/* --- Typography --- */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-title);
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-dark);
+  text-transform: uppercase;
+}
+
+h1 {
+  font-size: 2.5rem;
+  text-shadow: none;
+}
+
+h2 {
+  font-size: 1.8rem;
+  border-bottom: 2px solid var(--border-neon-primary);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+h3 {
+  font-size: 1.3rem;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-secondary);
+}
+
+/* --- Utility Classes --- */
+.text-center { text-align: center; }
+.text-primary { color: var(--color-primary); }
+.text-secondary { color: var(--color-secondary); }
+.text-accent { color: var(--color-accent); }
+.text-muted { color: var(--text-muted); }
+
+.glow-text-primary { text-shadow: var(--glow-primary); }
+.glow-text-secondary { text-shadow: var(--glow-secondary); }
+.glow-text-accent { text-shadow: var(--glow-accent); }
+
+.font-mono { font-family: var(--font-mono); }
+
+/* Grid & Flex Utilities */
+.grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+@media (max-width: 768px) {
+  .grid-cols-2, .grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.flex { display: flex; gap: 1rem; }
+.flex-col { flex-direction: column; }
+.align-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.flex-wrap { flex-wrap: wrap; }
+
+/* Scanline and Grid Effect Overlay (Softer light scanlines) */
+.scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    rgba(255, 255, 255, 0) 50%, 
+    rgba(34, 167, 196, 0.008) 50%
+  );
+  background-size: 100% 4px;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* --- Scrollbars --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(34, 167, 196, 0.08);
+  border: 1px solid var(--border-neon-primary);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 167, 196, 0.2);
+}
+
+/* --- Keyframe Animations --- */
+@keyframes pulse-neon-primary {
+  0%, 100% { box-shadow: 0 0 3px rgba(34, 167, 196, 0.1); }
+  50% { box-shadow: 0 0 8px rgba(34, 167, 196, 0.15); }
+}
+
+@keyframes pulse-neon-secondary {
+  0%, 100% { box-shadow: 0 0 3px rgba(26, 122, 158, 0.1); }
+  50% { box-shadow: 0 0 8px rgba(26, 122, 158, 0.15); }
+}
+
+@keyframes pulse-neon-accent {
+  0%, 100% { box-shadow: 0 0 3px rgba(220, 74, 74, 0.1); }
+  50% { box-shadow: 0 0 8px rgba(220, 74, 74, 0.15); }
+}
+
+@keyframes glitch {
+  0% { transform: translate(0) }
+  20% { transform: translate(-2px, 2px) }
+  40% { transform: translate(-2px, -2px) }
+  60% { transform: translate(2px, 2px) }
+  80% { transform: translate(2px, -2px) }
+  100% { transform: translate(0) }
+}

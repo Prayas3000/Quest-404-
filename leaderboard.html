@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quest 404 — Live Standings</title>
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/leaderboard.css">
+</head>
+<body>
+  <div class="scanlines"></div>
+
+  <!-- Header Nav -->
+  <header class="leaderboard-header">
+    <a href="index.html" class="logo">QUEST 404</a>
+    
+    <div class="flex align-center" style="gap: 1rem;">
+      <select id="leaderboard-session-select" class="select font-mono" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-width: 200px;">
+        <option value="">Loading Sessions...</option>
+      </select>
+      <span class="badge badge--success" id="leaderboard-status-badge">LIVE TRACKING</span>
+    </div>
+  </header>
+
+  <main class="leaderboard-container">
+    <h1 class="text-center glow-text-secondary" style="margin-bottom: 2.5rem; font-size: 2rem;">
+      🛰️ Game Standings
+    </h1>
+
+    <!-- Top 3 Podium -->
+    <div class="podium" id="podium-container">
+      <!-- 2nd Place -->
+      <div class="podium-col podium-col--second" id="podium-silver" style="display: none;">
+        <div class="podium-badge">🥈</div>
+        <div class="podium-card card card--secondary">
+          <div class="podium-team-name text-secondary">Team Name</div>
+          <div class="podium-stats font-mono">0 pts // 0 CPs</div>
+        </div>
+        <div class="podium-block"></div>
+      </div>
+
+      <!-- 1st Place -->
+      <div class="podium-col podium-col--first" id="podium-gold" style="display: none;">
+        <div class="podium-badge">👑 🥇</div>
+        <div class="podium-card card card--primary">
+          <div class="podium-team-name text-primary">Team Name</div>
+          <div class="podium-stats font-mono">0 pts // 0 CPs</div>
+        </div>
+        <div class="podium-block"></div>
+      </div>
+
+      <!-- 3rd Place -->
+      <div class="podium-col podium-col--third" id="podium-bronze" style="display: none;">
+        <div class="podium-badge">🥉</div>
+        <div class="podium-card card card--accent">
+          <div class="podium-team-name text-accent">Team Name</div>
+          <div class="podium-stats font-mono">0 pts // 0 CPs</div>
+        </div>
+        <div class="podium-block"></div>
+      </div>
+    </div>
+
+    <!-- Leaderboard Roster Table -->
+    <div class="card card--secondary" style="margin-top: 1rem;">
+      <h3 style="margin-bottom: 1.25rem;">📊 Complete Roster Standings</h3>
+      
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Team Name</th>
+              <th>Score (Correct Answers)</th>
+              <th>Checkpoints Solved</th>
+              <th>Completion Duration</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-table-body">
+            <tr><td colspan="5" class="text-center text-muted">No telemetry received</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- External libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <!-- Leaderboard scripts -->
+  <script type="module" src="js/leaderboard/live.js"></script>
+</body>
+</html>

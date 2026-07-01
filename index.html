@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quest 404 — Campus Scavenger Hunt</title>
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  
+  <style>
+    .hero-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 80px);
+      padding: 2rem;
+      position: relative;
+    }
+
+    .glitch-title {
+      font-size: 4rem;
+      font-weight: 900;
+      position: relative;
+      color: var(--text-dark);
+      text-shadow: 0 0 8px rgba(0, 180, 216, 0.15);
+      margin-bottom: 0.5rem;
+      text-align: center;
+      letter-spacing: 4px;
+    }
+
+    .glitch-title::before, .glitch-title::after {
+      content: 'QUEST 404';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-color);
+    }
+
+    .glitch-title::before {
+      color: var(--color-accent);
+      left: 2px;
+      text-shadow: -2px 0 var(--color-accent);
+      clip: rect(44px, 450px, 56px, 0);
+      animation: glitch-anim 5s infinite linear alternate-reverse;
+    }
+
+    .glitch-title::after {
+      color: var(--color-primary);
+      left: -2px;
+      text-shadow: -2px 0 var(--color-primary);
+      clip: rect(85px, 450px, 140px, 0);
+      animation: glitch-anim2 5s infinite linear alternate-reverse;
+    }
+
+    @keyframes glitch-anim {
+      0% { clip: rect(15px, 9999px, 66px, 0); }
+      10% { clip: rect(85px, 9999px, 5px, 0); }
+      20% { clip: rect(34px, 9999px, 99px, 0); }
+      30% { clip: rect(12px, 9999px, 55px, 0); }
+      40% { clip: rect(76px, 9999px, 23px, 0); }
+      50% { clip: rect(9px, 9999px, 80px, 0); }
+      60% { clip: rect(45px, 9999px, 98px, 0); }
+      70% { clip: rect(2px, 9999px, 12px, 0); }
+      80% { clip: rect(88px, 9999px, 67px, 0); }
+      90% { clip: rect(54px, 9999px, 34px, 0); }
+      100% { clip: rect(31px, 9999px, 77px, 0); }
+    }
+
+    @keyframes glitch-anim2 {
+      0% { clip: rect(70px, 9999px, 105px, 0); }
+      10% { clip: rect(12px, 9999px, 85px, 0); }
+      20% { clip: rect(98px, 9999px, 34px, 0); }
+      30% { clip: rect(5px, 9999px, 45px, 0); }
+      40% { clip: rect(34px, 9999px, 76px, 0); }
+      50% { clip: rect(66px, 9999px, 9px, 0); }
+      60% { clip: rect(23px, 9999px, 56px, 0); }
+      70% { clip: rect(87px, 9999px, 12px, 0); }
+      80% { clip: rect(4px, 9999px, 88px, 0); }
+      90% { clip: rect(55px, 9999px, 65px, 0); }
+      100% { clip: rect(12px, 9999px, 120px, 0); }
+    }
+
+    .subtitle {
+      font-family: var(--font-title);
+      color: var(--color-secondary);
+      font-size: 1.1rem;
+      letter-spacing: 2px;
+      margin-bottom: 2.5rem;
+      text-transform: uppercase;
+      text-shadow: none;
+    }
+
+    .main-form {
+      max-width: 400px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .header-nav {
+      width: 100%;
+      height: 80px;
+      padding: 0 2rem;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 20px;
+      width: 100%;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .quick-specs {
+      display: flex;
+      gap: 2rem;
+      margin-top: 3rem;
+      border-top: 1px dashed var(--border-color);
+      padding-top: 1.5rem;
+    }
+
+    .spec-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .spec-val {
+      font-family: var(--font-title);
+      font-size: 1.25rem;
+      color: var(--color-primary);
+    }
+
+    .spec-lbl {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="scanlines"></div>
+
+  <header class="header-nav">
+    <a href="leaderboard.html" class="btn btn-outline btn--sm">
+      <span style="font-family: var(--font-title);">🏆 Live Leaderboard</span>
+    </a>
+  </header>
+
+  <main class="hero-container">
+    <h1 class="glitch-title">QUEST 404</h1>
+    <div class="subtitle">Scavenger Hunt Cybersecurity Interface</div>
+
+    <div class="card card--secondary main-form" style="max-width: 450px;">
+      <!-- Tab Headers -->
+      <div class="flex justify-between" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1.5rem;">
+        <button class="nav-item active" id="tab-btn-register" style="background:none; border:none; font-family:var(--font-title); font-size:0.9rem; font-weight:700; color:var(--color-primary); cursor:pointer; text-transform:uppercase;">
+          🎮 Register Player
+        </button>
+        <button class="nav-item" id="tab-btn-spectator" style="background:none; border:none; font-family:var(--font-title); font-size:0.9rem; font-weight:700; color:var(--text-muted); cursor:pointer; text-transform:uppercase;">
+          👀 Spectator
+        </button>
+      </div>
+
+      <!-- Registration Form -->
+      <div id="form-container-register">
+        <h3 style="margin-bottom: 0.5rem;">Register for Hunt</h3>
+        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1.5rem;">
+          Enter your event Session ID and your name to join the game board.
+        </p>
+        <form id="register-form" onsubmit="handleRegister(event)">
+          <div class="form-group">
+            <label for="reg-session-id">Event Session ID</label>
+            <input type="text" id="reg-session-id" class="input font-mono" placeholder="e.g. SESS-XXXX-XXXX" required>
+          </div>
+          <div class="form-group">
+            <label for="reg-player-name">Your Full Name</label>
+            <input type="text" id="reg-player-name" class="input" placeholder="e.g. Alex Mercer" required>
+          </div>
+          <button type="submit" class="btn btn--primary" style="width: 100%;">
+            <span>REGISTER & JOIN</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Spectator Form -->
+      <div id="form-container-spectator" style="display: none;">
+        <h3 style="margin-bottom: 0.5rem;">Spectator Access</h3>
+        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1.5rem;">
+          Enter the Session ID to launch the live scoreboard standings.
+        </p>
+        <form id="join-form" onsubmit="handleJoin(event)">
+          <div class="form-group">
+            <label for="game-id">Session Game ID</label>
+            <input type="text" id="game-id" class="input font-mono" placeholder="e.g. SESS-XXXX-XXXX" required>
+          </div>
+          <button type="submit" class="btn btn--secondary" style="width: 100%;">
+            <span>LAUNCH LEADERBOARD</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="quick-specs">
+      <div class="spec-item">
+        <span class="spec-val">01</span>
+        <span class="spec-lbl">Locate QR</span>
+      </div>
+      <div class="spec-item" style="border-left: 1px solid var(--border-color); padding-left: 2rem;">
+        <span class="spec-val">02</span>
+        <span class="spec-lbl">Solve Quiz</span>
+      </div>
+      <div class="spec-item" style="border-left: 1px solid var(--border-color); padding-left: 2rem;">
+        <span class="spec-val">03</span>
+        <span class="spec-lbl">Rank Up</span>
+      </div>
+    </div>
+
+    <div class="footer">
+      SYSTEM PROTOCOL V1.1 // PRESS <span class="text-primary font-mono">SHIFT + K + L</span> FOR CONTROL CENTER
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module">
+    import { showToast } from './js/utils.js';
+    import { supabase } from './js/config.js';
+
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+
+    // Tab switching logic
+    const tabRegister = document.getElementById('tab-btn-register');
+    const tabSpectator = document.getElementById('tab-btn-spectator');
+    const formRegister = document.getElementById('form-container-register');
+    const formSpectator = document.getElementById('form-container-spectator');
+
+    tabRegister.addEventListener('click', () => {
+      tabRegister.style.color = 'var(--color-primary)';
+      tabSpectator.style.color = 'var(--text-muted)';
+      formRegister.style.display = 'block';
+      formSpectator.style.display = 'none';
+    });
+
+    tabSpectator.addEventListener('click', () => {
+      tabSpectator.style.color = 'var(--color-primary)';
+      tabRegister.style.color = 'var(--text-muted)';
+      formSpectator.style.display = 'block';
+      formRegister.style.display = 'none';
+    });
+
+    // Keyboard trigger listener: Shift + K + L
+    const keysPressed = {};
+    window.addEventListener('keydown', (e) => {
+      keysPressed[e.key.toLowerCase()] = true;
+      if (keysPressed['shift'] && keysPressed['k'] && keysPressed['l']) {
+        window.location.href = 'admin.html';
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      delete keysPressed[e.key.toLowerCase()];
+    });
+
+    // Handle Join (Spectator)
+    window.handleJoin = async function(e) {
+      e.preventDefault();
+      const gameId = document.getElementById('game-id').value.trim();
+      if (!gameId) return;
+
+      try {
+        // Query to check if the session exists
+        const { data, error } = await supabase
+          .from('sessions')
+          .select('id, title')
+          .eq('id', gameId)
+          .single();
+
+        if (error || !data) {
+          showToast('Session not found. Please enter a valid Session ID.', 'error');
+          return;
+        }
+
+        // Redirect to leaderboard
+        showToast('Access authorized. Initializing spectator console...', 'success');
+        setTimeout(() => {
+          window.location.href = `leaderboard.html?session=${data.id}`;
+        }, 1000);
+      } catch (err) {
+        console.error(err);
+        showToast('Error validating session ID', 'error');
+      }
+    };
+
+    // Handle Register (Player self-registration)
+    window.handleRegister = async function(e) {
+      e.preventDefault();
+      const sessionId = document.getElementById('reg-session-id').value.trim();
+      const playerName = document.getElementById('reg-player-name').value.trim();
+
+      if (!sessionId || !playerName) return;
+
+      try {
+        // 1. Verify if the session exists
+        const { data: session, error: sessErr } = await supabase
+          .from('sessions')
+          .select('id, status')
+          .eq('id', sessionId)
+          .single();
+
+        if (sessErr || !session) {
+          showToast('Session not found. Double-check your Session ID.', 'error');
+          return;
+        }
+
+        // 2. Generate a secure random access token: PL-XXXX-XXXX
+        const tokenPart1 = Math.floor(1000 + Math.random() * 9000);
+        const tokenPart2 = Math.floor(1000 + Math.random() * 9000);
+        const accessToken = `PL-${tokenPart1}-${tokenPart2}`;
+
+        // 3. Register player in Supabase (with NULL team_id initially)
+        const { error: insertErr } = await supabase
+          .from('players')
+          .insert({
+            session_id: session.id,
+            player_name: playerName,
+            access_token: accessToken,
+            team_id: null
+          });
+
+        if (insertErr) throw insertErr;
+
+        showToast('Registration secure! Initializing active console...', 'success');
+
+        // 4. Store token in localStorage and redirect
+        localStorage.setItem('quest_player_token', accessToken);
+        setTimeout(() => {
+          window.location.href = `play.html?token=${accessToken}`;
+        }, 1200);
+
+      } catch (err) {
+        console.error(err);
+        showToast(err.message || 'Error occurred during registration.', 'error');
+      }
+    };
+  </script>
+</body>
+</html>
