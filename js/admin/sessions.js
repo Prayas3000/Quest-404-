@@ -68,6 +68,7 @@ function renderSessions() {
         <div class="flex" style="gap: 5px;">
           ${sess.status === 'draft' ? `<button class="btn btn--primary btn--sm action-start" data-id="${sess.id}">START</button>` : ''}
           ${sess.status === 'active' ? `<button class="btn btn--accent btn--sm action-end" data-id="${sess.id}">END</button>` : ''}
+          ${sess.status === 'completed' ? `<button class="btn btn--secondary btn--sm action-reset" data-id="${sess.id}">RESET</button>` : ''}
           ${sess.status === 'draft' ? `<button class="btn btn--outline btn--sm action-edit" data-id="${sess.id}">EDIT</button>` : ''}
           <button class="btn btn--outline btn--sm action-delete text-accent" data-id="${sess.id}">DEL</button>
         </div>
@@ -83,6 +84,9 @@ function renderSessions() {
   });
   tbody.querySelectorAll('.action-end').forEach(btn => {
     btn.addEventListener('click', () => endSession(btn.getAttribute('data-id')));
+  });
+  tbody.querySelectorAll('.action-reset').forEach(btn => {
+    btn.addEventListener('click', () => resetSession(btn.getAttribute('data-id')));
   });
   tbody.querySelectorAll('.action-edit').forEach(btn => {
     btn.addEventListener('click', () => editSession(btn.getAttribute('data-id')));
@@ -247,5 +251,48 @@ async function endSession(id) {
   } catch (err) {
     console.error('Error ending session:', err);
     showToast('Failed to end session', 'error');
+  }
+}
+
+// Reset a completed session back to draft status, clearing all player progress
+async function resetSession(id) {
+  if (!confirm('Are you sure you want to reset this session? All registered players, answers, route assignments, and game progress will be permanently deleted.')) {
+    return;
+  }
+
+  try {
+    // 1. Delete players belonging to this session
+    // This will cascade delete player_routes, player_answers, player_checkpoint_questions
+    const { error: deleteErr } = await supabase
+      .from('players')
+      .delete()
+      .eq('session_id', id);
+
+    if (deleteErr) throw deleteErr;
+
+    // 2. Reset session status to draft and started_at to null
+    const { error: updateErr } = await supabase
+      .from('sessions')
+      .update({
+        status: 'draft',
+        started_at: null
+      })
+      .eq('id', id);
+
+    if (updateErr) throw updateErr;
+
+    showToast('Session reset to draft. Ready to play again!', 'success');
+    
+    // Refresh all states
+    await checkActiveSession();
+    loadSessions();
+    
+    // Dispatch reload events to update other open panels
+    document.dispatchEvent(new CustomEvent('tab-reload-players'));
+    document.dispatchEvent(new CustomEvent('tab-reload-routes'));
+    document.dispatchEvent(new CustomEvent('tab-reload-dashboard'));
+  } catch (err) {
+    console.error('Error resetting session:', err);
+    showToast('Failed to reset session', 'error');
   }
 }
