@@ -56,6 +56,12 @@ function setupUIHandlers() {
 
   // Quiz Form submission
   document.getElementById('quiz-form').addEventListener('submit', handleAnswersSubmission);
+
+  // Play Again / Reset token
+  document.getElementById('btn-play-again').addEventListener('click', () => {
+    localStorage.removeItem('quest_player_token');
+    window.location.href = 'index.html';
+  });
 }
 
 // Switch between full screen views
