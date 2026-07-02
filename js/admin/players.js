@@ -249,6 +249,28 @@ function renderAssignedPlayers() {
 // Service function to update player's team in Supabase
 async function assignPlayerToTeam(playerId, teamId) {
   try {
+    // Get the player's name to check for duplicates
+    const { data: player, error: playerErr } = await supabase
+      .from('players')
+      .select('player_name')
+      .eq('id', playerId)
+      .single();
+
+    if (playerErr || !player) throw playerErr || new Error('Player not found');
+
+    // Check if a player with the same name already exists on the target team
+    const { data: existing, error: dupErr } = await supabase
+      .from('players')
+      .select('id')
+      .eq('team_id', teamId)
+      .ilike('player_name', player.player_name)
+      .limit(1);
+
+    if (!dupErr && existing && existing.length > 0) {
+      showToast(`A player named "${player.player_name}" already exists on this team.`, 'error');
+      return;
+    }
+
     const { error } = await supabase
       .from('players')
       .update({ team_id: teamId })
@@ -293,10 +315,34 @@ async function handleAutoDistribution() {
       return;
     }
 
-    // 2. Distribute players round-robin
+    // 2. Pre-check: load all assigned players to detect name conflicts
+    const { data: assignedPlayers, error: assignedErr } = await supabase
+      .from('players')
+      .select('player_name, team_id')
+      .eq('session_id', sessionId)
+      .not('team_id', 'is', null);
+
+    if (assignedErr) throw assignedErr;
+
+    // Build a set of (team_id, lowercase_name) for quick conflict lookup
+    const existingNames = new Set(
+      (assignedPlayers || []).map(p => `${p.team_id}::${p.player_name.toLowerCase()}`)
+    );
+
+    // 3. Distribute players round-robin, skipping conflicts
     const promises = [];
+    const skipped = [];
     unassigned.forEach((player, index) => {
       const assignedTeam = sessionTeams[index % sessionTeams.length];
+      const key = `${assignedTeam.id}::${player.player_name.toLowerCase()}`;
+
+      if (existingNames.has(key)) {
+        skipped.push(`${player.player_name} → ${assignedTeam.team_name}`);
+        return;
+      }
+
+      // Track this assignment to prevent intra-batch conflicts
+      existingNames.add(key);
       promises.push(
         supabase
           .from('players')
@@ -307,7 +353,13 @@ async function handleAutoDistribution() {
 
     await Promise.all(promises);
 
-    showToast(`Distributed ${unassigned.length} players to teams successfully!`, 'success');
+    const placedCount = unassigned.length - skipped.length;
+    showToast(`Distributed ${placedCount} players to teams successfully!`, 'success');
+
+    if (skipped.length > 0) {
+      showToast(`Skipped ${skipped.length} player(s) due to name conflicts on target team.`, 'warning');
+    }
+
     loadPlayers();
   } catch (err) {
     console.error('Error in auto-distribution:', err);
@@ -336,6 +388,19 @@ async function handleSavePlayer(e) {
   const access_token = generateToken(16);
 
   try {
+    // Check for duplicate name in the session (case-insensitive)
+    const { data: existing, error: dupErr } = await supabase
+      .from('players')
+      .select('id')
+      .eq('session_id', sessionId)
+      .ilike('player_name', name)
+      .limit(1);
+
+    if (!dupErr && existing && existing.length > 0) {
+      showToast(`A player named "${name}" already exists in this session.`, 'error');
+      return;
+    }
+
     const { error } = await supabase
       .from('players')
       .insert([{

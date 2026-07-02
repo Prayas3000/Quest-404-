@@ -96,6 +96,9 @@ The application uses **Supabase Row Level Security (RLS)** to guard table access
    - `player_name` (Text)
    - `access_token` (Text, Unique token to sign in, e.g., `PL-XXXX-XXXX`)
    - `current_checkpoint` (References `checkpoints.id`)
+   - *Unique Constraints*:
+     - `(session_id, lower(player_name))` to prevent duplicate names per session.
+     - `(team_id, lower(player_name))` (when team assigned) to prevent duplicate names per team.
 5. **`questions`**: Full list of challenges (Admin only).
    - `id` (UUID, Primary Key)
    - `topic` (`'cybersecurity'`, `'mathematics'`)
@@ -123,6 +126,12 @@ The application uses **Supabase Row Level Security (RLS)** to guard table access
    - `player_id` (References `players.id`)
    - `checkpoint_id` (References `checkpoints.id`)
    - `question_id` (References `questions.id`)
+9. **`checkpoint_questions`**: Shared questions allocated to checkpoints per session (seeded by the first player to arrive at each checkpoint).
+   - `id` (UUID, Primary Key)
+   - `session_id` (References `sessions.id`)
+   - `checkpoint_id` (References `checkpoints.id`)
+   - `question_id` (References `questions.id`)
+   - *Unique Constraint*: `(session_id, checkpoint_id, question_id)`
 
 ### Views
 
@@ -134,7 +143,10 @@ The application uses **Supabase Row Level Security (RLS)** to guard table access
 
 - **`get_or_create_player_state(p_token text)`** (Security Definer):
   - Fetches the active player and session details.
-  - If a team is assigned and questions haven't been generated for the player's active checkpoint, it picks random, active, unanswered questions and inserts them into `player_checkpoint_questions`.
+  - If a team is assigned and questions haven't been generated for the player's active checkpoint:
+    - It checks if shared questions exist in `checkpoint_questions` for this session and checkpoint.
+    - If not, it randomly selects and inserts active questions into `checkpoint_questions` (seeding them for everyone).
+    - It then replicates these shared questions into `player_checkpoint_questions` for this player so they can be securely loaded.
 - **`submit_checkpoint_answers(p_token text, p_checkpoint_id uuid, p_answers jsonb)`** (Security Definer):
   - Authenticates the submission using the access token.
   - Verifies session status, time limit, and checks if the checkpoint matches the player's active state.
@@ -154,6 +166,7 @@ The application uses **Supabase Row Level Security (RLS)** to guard table access
 - Player views their active checkpoint hint coordinates.
 - Player clicks "Scan Node" to initialize the browser camera scanner.
 - If the scanned QR code matches the active checkpoint identifier, the assigned challenges are fetched from `questions_public`.
+- The questions are shared and uniform for all players visiting this checkpoint: the first player to scan a checkpoint seeds the active questions, and all subsequent players who scan that same checkpoint are served the exact same questions.
 - The player submits their decryptions, which are verified securely via the database.
 
 ### C. Live Telemetry & Spectator Leaderboard

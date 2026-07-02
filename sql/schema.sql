@@ -105,6 +105,24 @@ create table player_checkpoint_questions (
   unique (player_id, checkpoint_id, question_id)
 );
 
+-- 9. Checkpoint Questions Table (Shared questions per checkpoint, seeded by first player)
+create table checkpoint_questions (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid references sessions(id) on delete cascade not null,
+  checkpoint_id uuid references checkpoints(id) on delete cascade not null,
+  question_id uuid references questions(id) on delete cascade not null,
+  created_at timestamp with time zone default now(),
+  unique (session_id, checkpoint_id, question_id)
+);
+
+-- Unique indexes: prevent duplicate player names per team and per session
+create unique index idx_unique_player_name_per_team
+  on players (team_id, lower(player_name))
+  where team_id is not null;
+
+create unique index idx_unique_player_name_per_session
+  on players (session_id, lower(player_name));
+
 -- --- VIEWS ---
 
 -- Public Questions View (Excludes correct answer column)
@@ -159,7 +177,7 @@ join sessions s on ta.session_id = s.id;
 
 -- --- FUNCTIONS & PROCEDURES (SECURITY DEFINER) ---
 
--- 1. Initialize Player Questions & Route status
+-- 1. Initialize Player Questions & Route status (Checkpoint-Linked Shared Questions)
 create or replace function get_or_create_player_state(p_token text)
 returns json
 language plpgsql
@@ -168,9 +186,8 @@ as $$
 declare
   v_player record;
   v_session record;
-  v_current_route record;
   v_questions_count integer;
-  v_assigned_question record;
+  v_shared_questions_count integer;
   v_checkpoint_id uuid;
   v_first_checkpoint uuid;
 begin
@@ -223,33 +240,37 @@ begin
 
   v_checkpoint_id := v_player.current_checkpoint;
 
-  -- If there is a current checkpoint, assign questions if they don't exist yet
+  -- If there is a current checkpoint, handle shared question assignment
   if v_checkpoint_id is not null then
+
+    -- Step 1: Check if shared checkpoint_questions exist for this session+checkpoint
+    select count(*) into v_shared_questions_count
+    from checkpoint_questions
+    where session_id = v_player.session_id and checkpoint_id = v_checkpoint_id;
+
+    -- Step 2: If no shared questions exist yet, this player seeds them (first arrival)
+    if v_shared_questions_count = 0 then
+      insert into checkpoint_questions (session_id, checkpoint_id, question_id)
+      select v_player.session_id, v_checkpoint_id, q.id
+      from questions q
+      where q.is_active = true
+      order by random()
+      limit v_session.questions_per_checkpoint;
+    end if;
+
+    -- Step 3: Check if THIS player already has questions assigned for this checkpoint
     select count(*) into v_questions_count
     from player_checkpoint_questions
     where player_id = v_player.id and checkpoint_id = v_checkpoint_id;
 
+    -- Step 4: If not, copy shared questions into player_checkpoint_questions
     if v_questions_count = 0 then
-      -- Assign unique random questions for this checkpoint
       insert into player_checkpoint_questions (player_id, checkpoint_id, question_id)
-      select v_player.id, v_checkpoint_id, q.id
-      from questions q
-      where q.is_active = true
-      -- Ensure player hasn't answered this question at previous checkpoints
-      and q.id not in (
-        select question_id from player_answers where player_id = v_player.id
-      )
-      -- Optional: try to avoid overlapping with teammates at this checkpoint
-      order by 
-        case when q.id not in (
-          select question_id 
-          from player_checkpoint_questions pcq
-          join players teammate on pcq.player_id = teammate.id
-          where teammate.team_id = v_player.team_id and pcq.checkpoint_id = v_checkpoint_id
-        ) then 0 else 1 end,
-        random()
-      limit v_session.questions_per_checkpoint;
+      select v_player.id, v_checkpoint_id, cq.question_id
+      from checkpoint_questions cq
+      where cq.session_id = v_player.session_id and cq.checkpoint_id = v_checkpoint_id;
     end if;
+
   end if;
 
   -- Build response state
@@ -394,6 +415,7 @@ alter table questions enable row level security;
 alter table player_routes enable row level security;
 alter table player_answers enable row level security;
 alter table player_checkpoint_questions enable row level security;
+alter table checkpoint_questions enable row level security;
 
 -- Admin Policies (All tables CRUD if authenticated)
 create policy admin_all_sessions on sessions for all to authenticated using (true) with check (true);
@@ -404,6 +426,7 @@ create policy admin_all_questions on questions for all to authenticated using (t
 create policy admin_all_player_routes on player_routes for all to authenticated using (true) with check (true);
 create policy admin_all_player_answers on player_answers for all to authenticated using (true) with check (true);
 create policy admin_all_checkpoint_questions on player_checkpoint_questions for all to authenticated using (true) with check (true);
+create policy admin_all_checkpoint_questions_shared on checkpoint_questions for all to authenticated using (true) with check (true);
 
 -- Public / Anonymous Policies
 -- 1. Sessions: Anonymous can read draft / active / completed sessions
@@ -433,6 +456,9 @@ create policy anon_read_player_answers on player_answers for select to anon usin
 -- 7. Assigned Questions: Anonymous can read assigned questions metadata
 create policy anon_read_checkpoint_questions on player_checkpoint_questions for select to anon using (true);
 
+-- 8. Shared Checkpoint Questions: Anonymous can read
+create policy anon_read_checkpoint_questions_shared on checkpoint_questions for select to anon using (true);
+
 -- --- INDEXES FOR PERFORMANCE ---
 create index idx_teams_session_id on teams(session_id);
 create index idx_checkpoints_session_id on checkpoints(session_id);
@@ -440,3 +466,4 @@ create index idx_players_team_id on players(team_id);
 create index idx_player_routes_player_id on player_routes(player_id);
 create index idx_player_answers_player_id on player_answers(player_id);
 create index idx_checkpoint_questions_player_id on player_checkpoint_questions(player_id);
+create index idx_checkpoint_questions_session_checkpoint on checkpoint_questions(session_id, checkpoint_id);

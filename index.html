@@ -343,6 +343,19 @@
           return;
         }
 
+        // 1c. Check for duplicate player name in this session (case-insensitive)
+        const { data: existingPlayer, error: dupErr } = await supabase
+          .from('players')
+          .select('id')
+          .eq('session_id', session.id)
+          .ilike('player_name', playerName)
+          .limit(1);
+
+        if (!dupErr && existingPlayer && existingPlayer.length > 0) {
+          showToast('A player with this name already exists in this session. Use a unique name.', 'error');
+          return;
+        }
+
         // 2. Generate a secure random access token: PL-XXXX-XXXX
         const tokenPart1 = Math.floor(1000 + Math.random() * 9000);
         const tokenPart2 = Math.floor(1000 + Math.random() * 9000);
