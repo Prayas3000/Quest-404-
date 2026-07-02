@@ -3,6 +3,8 @@ import { supabase } from '../config.js';
 import { showToast } from '../utils.js';
 import { state } from './admin.js';
 
+let currentAttachments = [];
+
 export function initQuestions() {
   const filterTopic = document.getElementById('question-topic-filter');
   const filterDiff = document.getElementById('question-difficulty-filter');
@@ -16,6 +18,8 @@ export function initQuestions() {
   btnCreate.addEventListener('click', () => {
     document.getElementById('form-question').reset();
     document.getElementById('question-id-input').value = '';
+    currentAttachments = [];
+    renderAttachmentsPreview();
     toggleQuestionOptions(); // Updates input layout based on default selection (MCQ)
     openModal('modal-question');
   });
@@ -25,6 +29,9 @@ export function initQuestions() {
 
   // Tab reload event
   document.addEventListener('tab-reload-questions', loadQuestions);
+
+  // Setup attachment drag/drop and paste handlers
+  setupAttachmentHandlers();
 
   // Initial load
   loadQuestions();
@@ -124,7 +131,7 @@ async function handleSaveQuestion(e) {
     ];
   }
 
-  const payload = { topic, difficulty, question_type, question, options, answer, is_active: true };
+  const payload = { topic, difficulty, question_type, question, options, answer, attachments: currentAttachments, is_active: true };
 
   try {
     let result;
@@ -158,6 +165,9 @@ function editQuestion(id) {
   document.getElementById('question-answer').value = q.answer;
 
   toggleQuestionOptions(); // Update layout
+
+  currentAttachments = q.attachments || [];
+  renderAttachmentsPreview();
 
   if (q.question_type === 'mcq' && q.options) {
     document.getElementById('option-0').value = q.options[0] || '';
@@ -283,3 +293,176 @@ async function seedDefaultQuestions() {
     showToast('Failed to seed question bank', 'error');
   }
 }
+
+// Attachments Drag & Drop / Copy-Paste Handlers
+function setupAttachmentHandlers() {
+  const dropzone = document.getElementById('question-dropzone');
+  const filePicker = document.getElementById('question-file-picker');
+  const textarea = document.getElementById('question-text');
+
+  if (!dropzone || !filePicker || !textarea) return;
+
+  // Trigger file selection click
+  dropzone.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'INPUT') {
+      filePicker.click();
+    }
+  });
+
+  // Handle manual file selection
+  filePicker.addEventListener('change', () => {
+    processFiles(filePicker.files);
+    filePicker.value = ''; // Reset to allow re-selecting same file
+  });
+
+  // Drag & Drop handlers
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = 'var(--color-primary)';
+      dropzone.style.background = 'rgba(34, 167, 196, 0.08)';
+    }, false);
+    
+    textarea.addEventListener(eventName, (e) => {
+      e.preventDefault();
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = 'var(--border-neon-primary)';
+      dropzone.style.background = 'rgba(34, 167, 196, 0.02)';
+    }, false);
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    if (dt && dt.files) {
+      processFiles(dt.files);
+    }
+  });
+
+  textarea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const dt = e.dataTransfer;
+    if (dt && dt.files) {
+      processFiles(dt.files);
+    }
+  });
+
+  // Paste handlers (Ctrl+V)
+  const pasteHandler = (e) => {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    const files = [];
+    for (let index in items) {
+      const item = items[index];
+      if (item.kind === 'file') {
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+    }
+    if (files.length > 0) {
+      processFiles(files);
+    }
+  };
+
+  textarea.addEventListener('paste', pasteHandler);
+  dropzone.addEventListener('paste', pasteHandler);
+}
+
+function processFiles(files) {
+  const maxSize = 3 * 1024 * 1024; // 3MB
+
+  Array.from(files).forEach(file => {
+    // Basic validation for accepted types
+    const isImage = file.type.startsWith('image/');
+    const isPDF = file.type === 'application/pdf';
+
+    if (!isImage && !isPDF) {
+      showToast(`Unsupported file type: ${file.name}. Only PNG, JPG, and PDF are allowed.`, 'error');
+      return;
+    }
+
+    if (file.size > maxSize) {
+      showToast(`File "${file.name}" is too large. Max size allowed is 3MB.`, 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const base64Data = e.target.result;
+      
+      // Prevent duplicate attachment name additions in the current session
+      if (currentAttachments.some(att => att.name === file.name && att.size === file.size)) {
+        showToast(`File "${file.name}" is already attached.`, 'warning');
+        return;
+      }
+
+      currentAttachments.push({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        data: base64Data
+      });
+      renderAttachmentsPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderAttachmentsPreview() {
+  const container = document.getElementById('question-attachments-preview');
+  if (!container) return;
+  container.innerHTML = '';
+
+  currentAttachments.forEach((att, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card font-mono flex align-center justify-between';
+    card.style.padding = '0.5rem 0.75rem';
+    card.style.fontSize = '0.75rem';
+    card.style.width = '100%';
+    card.style.maxWidth = '380px';
+    card.style.background = '#ffffff';
+    card.style.border = '1px solid var(--border-color)';
+    card.style.borderRadius = 'var(--radius-sm)';
+    card.style.gap = '10px';
+
+    const isImage = att.type.startsWith('image/');
+    let previewHtml = '';
+
+    if (isImage) {
+      previewHtml = `<img src="${att.data}" style="width:36px; height:36px; object-fit:cover; border-radius:4px; border:1px solid var(--border-color);">`;
+    } else {
+      previewHtml = `<div style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; background:rgba(220,74,74,0.05); color:var(--color-accent); border:1px solid rgba(220,74,74,0.15); border-radius:4px; font-weight:bold; font-size:0.65rem;">PDF</div>`;
+    }
+
+    card.innerHTML = `
+      <div class="flex align-center" style="gap:10px; overflow:hidden; flex-grow:1;">
+        ${previewHtml}
+        <div style="overflow:hidden; text-align:left;">
+          <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-dark);" title="${att.name}">${att.name}</div>
+          <div style="font-size:0.65rem; color:var(--text-muted);">${formatBytes(att.size)}</div>
+        </div>
+      </div>
+      <button type="button" class="btn btn--outline btn--sm btn-delete-att" data-index="${idx}" style="padding:0.2rem 0.4rem; min-width:30px; min-height:30px; border-color:rgba(220,74,74,0.2); color:var(--color-accent);">✕</button>
+    `;
+
+    card.querySelector('.btn-delete-att').addEventListener('click', (e) => {
+      const index = parseInt(e.currentTarget.getAttribute('data-index'), 10);
+      currentAttachments.splice(index, 1);
+      renderAttachmentsPreview();
+    });
+
+    container.appendChild(card);
+  });
+}
+
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+

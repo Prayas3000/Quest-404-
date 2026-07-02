@@ -183,3 +183,36 @@ body {
   border-color: var(--color-primary);
   box-shadow: 0 0 4px rgba(34, 167, 196, 0.08);
 }
+
+/* --- Question Attachment Styles --- */
+.question-attachment-img {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  cursor: zoom-in;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.question-attachment-img:hover {
+  transform: scale(1.02);
+  box-shadow: var(--glow-primary);
+  border-color: var(--border-neon-primary);
+}
+
+.question-attachment-pdf-btn {
+  background: rgba(34, 167, 196, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  text-decoration: none;
+  color: var(--text-dark);
+  transition: all var(--transition-fast);
+}
+
+.question-attachment-pdf-btn:hover {
+  background: rgba(34, 167, 196, 0.06);
+  border-color: var(--color-primary);
+  box-shadow: var(--glow-primary);
+  color: var(--color-primary);
+}
+

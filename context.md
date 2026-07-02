@@ -59,7 +59,9 @@ Quest-404-/
 │       └── live.js           # Spectator standings updates & live scoreboard channel listener
 └── sql/
     ├── schema.sql            # Primary database tables, view aggregations, RPCs, and RLS policies
-    └── migration_self_reg.sql# Migration for player self-registration & nullable team assignment
+    ├── migration_self_reg.sql# Migration for player self-registration & nullable team assignment
+    ├── migration_v2.sql      # Migration for duplicate name prevention & checkpoint-linked questions
+    └── migration_attachments.sql # Migration for question file attachments (PNG, JPG, PDF)
 ```
 
 ---
@@ -107,6 +109,7 @@ The application uses **Supabase Row Level Security (RLS)** to guard table access
    - `question` (Text)
    - `options` (JSONB, array of option strings)
    - `answer` (Text, correct option index or direct string)
+   - `attachments` (JSONB, array of `{name, type, size, data}` objects — base64 encoded PNG/JPG/PDF files, max 3MB each)
    - `is_active` (Boolean)
 6. **`player_routes`**: Path checklist mapping order of checkpoints for each player.
    - `id` (UUID, Primary Key)

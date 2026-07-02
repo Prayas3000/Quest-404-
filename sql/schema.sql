@@ -68,6 +68,7 @@ create table questions (
   question text not null,
   options jsonb, -- array of strings e.g. ["A", "B", "C", "D"]
   answer text not null, -- correct option index or exact string
+  attachments jsonb default '[]'::jsonb,
   is_active boolean not null default true,
   created_at timestamp with time zone default now()
 );
@@ -127,7 +128,7 @@ create unique index idx_unique_player_name_per_session
 
 -- Public Questions View (Excludes correct answer column)
 create or replace view questions_public as
-select id, topic, difficulty, question_type, question, options, is_active
+select id, topic, difficulty, question_type, question, options, attachments, is_active
 from questions;
 
 -- Leaderboard View (Aggregated team score calculations)

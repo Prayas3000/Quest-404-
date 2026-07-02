@@ -538,6 +538,17 @@
           <textarea id="question-text" class="textarea" rows="3" placeholder="Enter the quiz question..." required></textarea>
         </div>
 
+        <div class="form-group">
+          <label>Question Attachments (PNG, JPG, PDF - Max 3MB per file)</label>
+          <div id="question-dropzone" class="dropzone font-mono" style="border: 2px dashed var(--border-neon-primary); border-radius: var(--radius-sm); padding: 1.25rem; text-align: center; cursor: pointer; transition: all var(--transition-fast); background: rgba(34, 167, 196, 0.02); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 0.25rem;">
+            <span style="font-size: 1.5rem; filter: drop-shadow(0 0 2px rgba(34, 167, 196, 0.2));">📁</span>
+            <span style="font-size: 0.85rem; color: var(--text-dark); font-weight: 600;">Drag & Drop or Paste files here</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">or click to select files from system</span>
+            <input type="file" id="question-file-picker" multiple accept=".png,.jpg,.jpeg,.pdf" style="display: none;">
+          </div>
+          <div id="question-attachments-preview" class="flex flex-wrap" style="gap: 10px; margin-top: 10px; min-height: 0;"></div>
+        </div>
+
         <div id="options-config-group">
           <div class="form-group">
             <label>MCQ Options (One per field)</label>
