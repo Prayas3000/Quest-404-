@@ -15,30 +15,40 @@ export function initScanner() {
 // Start camera scan
 export async function startScanner() {
   try {
-    const cameras = await Html5Qrcode.getCameras();
-    
-    if (cameras && cameras.length > 0) {
-      // Prefer back camera if available
-      let backCam = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('environment'));
-      const cameraId = backCam ? backCam.id : cameras[0].id;
-
-      await html5QrScanner.start(
-        cameraId,
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 }
-        },
-        onScanSuccess,
-        onScanFailure
-      );
-    } else {
-      showToast('No cameras detected on this device.', 'error');
+    // Try starting directly with back camera (environment)
+    await html5QrScanner.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 }
+      },
+      onScanSuccess,
+      onScanFailure
+    );
+  } catch (err) {
+    console.warn('Could not start with facingMode "environment", attempting fallback...', err);
+    try {
+      // Fallback: Query cameras list and start the first one
+      const cameras = await Html5Qrcode.getCameras();
+      if (cameras && cameras.length > 0) {
+        await html5QrScanner.start(
+          cameras[0].id,
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+          },
+          onScanSuccess,
+          onScanFailure
+        );
+      } else {
+        showToast('No cameras detected on this device.', 'error');
+        switchScreen('screen-hint');
+      }
+    } catch (fallbackErr) {
+      console.error('Camera access error:', fallbackErr);
+      showToast('Failed to start camera. Please verify device permissions.', 'error');
       switchScreen('screen-hint');
     }
-  } catch (err) {
-    console.error('Camera access error:', err);
-    showToast('Failed to start camera. Please verify device permissions.', 'error');
-    switchScreen('screen-hint');
   }
 }
 
@@ -53,6 +63,11 @@ export async function stopScanner() {
   }
 }
 
+// Scan cooldown state to prevent error flooding
+let lastScannedValue = null;
+let lastScanTime = 0;
+const SCAN_COOLDOWN_MS = 3000; // 3 second cooldown for repeated wrong scans
+
 // QR Scan success callback
 async function onScanSuccess(decodedText, decodedResult) {
   // Validate scan format
@@ -61,6 +76,10 @@ async function onScanSuccess(decodedText, decodedResult) {
 
   // Match scanned QR code identifier
   if (scannedVal === gameState.currentCheckpoint.qr_identifier) {
+    // Reset cooldown state on correct scan
+    lastScannedValue = null;
+    lastScanTime = 0;
+
     // 1. Correct checkpoint scanned! Stop camera.
     await stopScanner();
     showToast('Node handshake authorized! Opening challenges...', 'success');
@@ -68,17 +87,44 @@ async function onScanSuccess(decodedText, decodedResult) {
     // 2. Fetch questions pre-assigned for this player at this checkpoint
     await fetchCheckpointQuestions();
   } else {
+    // Cooldown check: skip if any wrong code was scanned recently (within 3 seconds)
+    const now = Date.now();
+    if ((now - lastScanTime) < SCAN_COOLDOWN_MS) {
+      return; // Silently ignore repeated wrong scans during the cooldown
+    }
+    lastScanTime = now;
+
+    // Pause the scanner feed to freeze screen and stop scan processing
+    if (html5QrScanner && html5QrScanner.isScanning) {
+      try {
+        html5QrScanner.pause(true);
+      } catch (err) {
+        console.error('Failed to pause scanner:', err);
+      }
+    }
+
+    // Resume scanning callback passed to toast dismiss handler
+    const resumeScan = () => {
+      if (html5QrScanner && html5QrScanner.isScanning) {
+        try {
+          html5QrScanner.resume();
+        } catch (err) {
+          console.error('Failed to resume scanner:', err);
+        }
+      }
+    };
+
     // 2. Incorrect checkpoint scanned
     // Try to find if this belongs to a different checkpoint in the session
     const matchAny = gameState.allCheckpoints.find(c => c.qr_identifier === scannedVal);
     if (matchAny) {
       if (matchAny.is_completed) {
-        showToast('This checkpoint node has already been decrypted.', 'warning');
+        showToast('This checkpoint node has already been decrypted.', 'warning', 3000, resumeScan);
       } else {
-        showToast('Out-of-order checkpoint. Verify coordinates and try again.', 'error');
+        showToast('Out-of-order checkpoint. Verify coordinates and try again.', 'error', 3000, resumeScan);
       }
     } else {
-      showToast('Invalid node code format detected.', 'error');
+      showToast('Invalid node code format detected.', 'error', 3000, resumeScan);
     }
   }
 }

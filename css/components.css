@@ -205,11 +205,12 @@
   position: fixed;
   top: 20px;
   right: 20px;
-  z-index: 10000;
+  z-index: 999999 !important;
   display: flex;
   flex-direction: column;
   gap: 10px;
   pointer-events: none;
+  transform: translate3d(0, 0, 0);
 }
 
 .toast {
@@ -227,6 +228,29 @@
   border-left: 4px solid var(--text-muted);
   animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   backdrop-filter: blur(8px);
+  cursor: pointer;
+  z-index: 999999 !important;
+  transform: translate3d(0, 0, 0);
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+
+.toast-close:hover {
+  color: var(--text-dark);
 }
 
 .toast--success { border-left-color: var(--color-primary); }
@@ -236,6 +260,11 @@
 @keyframes slideInRight {
   from { transform: translateX(120%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(120%); opacity: 0; }
 }
 
 /* Modals */

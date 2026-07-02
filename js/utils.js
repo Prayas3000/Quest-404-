@@ -1,7 +1,56 @@
 // Shared Helper Utilities
 
 // Toast notifications system
-export function showToast(message, type = 'info', duration = 4000) {
+const MAX_TOASTS = 3;
+let lastErrorTime = 0;
+const ERROR_RATE_LIMIT_MS = 3000; // 3 seconds limit between error popups globally
+
+function dismissToast(toast) {
+  if (toast.dataset.dismissing) return;
+  toast.dataset.dismissing = 'true';
+  toast.style.animation = 'slideOutRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+  
+  let removed = false;
+  const remove = () => {
+    if (removed) return;
+    removed = true;
+    toast.remove();
+    // Fire callback if it exists
+    if (toast.onCloseCallback && typeof toast.onCloseCallback === 'function') {
+      try {
+        toast.onCloseCallback();
+      } catch (err) {
+        console.error('Error in toast onClose callback:', err);
+      }
+    }
+  };
+  
+  toast.addEventListener('animationend', remove);
+  
+  // Backup timeout in case animation fails to play or animationend doesn't fire
+  setTimeout(remove, 350);
+}
+
+export function showToast(message, type = 'info', duration = 4000, onClose = null) {
+  // Force errors and warnings to automatically disappear in 3 seconds (3000ms)
+  if (type === 'error' || type === 'warning') {
+    duration = 3000;
+  }
+
+  // Global rate limiter for errors/warnings across the entire codebase
+  if (type === 'error' || type === 'warning') {
+    const now = Date.now();
+    if (now - lastErrorTime < ERROR_RATE_LIMIT_MS) {
+      console.warn('Blocked duplicate error popup to prevent flooding:', message);
+      // Execute the callback immediately since we are blocking the toast
+      if (onClose && typeof onClose === 'function') {
+        try { onClose(); } catch (e) {}
+      }
+      return;
+    }
+    lastErrorTime = now;
+  }
+
   let container = document.getElementById('toast-container');
   if (!container) {
     container = document.createElement('div');
@@ -9,26 +58,50 @@ export function showToast(message, type = 'info', duration = 4000) {
     document.body.appendChild(container);
   }
 
+  // Evict oldest toasts if at the limit
+  while (container.children.length >= MAX_TOASTS) {
+    dismissToast(container.children[0]);
+  }
+
   const toast = document.createElement('div');
   toast.className = `toast toast--${type}`;
+  if (onClose) {
+    toast.onCloseCallback = onClose;
+  }
   
   let icon = '⚡';
   if (type === 'success') icon = '✓';
   if (type === 'error') icon = '✕';
   
   toast.innerHTML = `
-    <span style="font-size: 1.25rem;">${icon}</span>
+    <span style="font-size: 1.25rem; display: flex; align-items: center;">${icon}</span>
     <div style="flex-grow: 1;">${sanitizeHTML(message)}</div>
+    <button class="toast-close" aria-label="Dismiss" title="Dismiss">&times;</button>
   `;
+
+  // Close button tap/click handlers
+  const closeBtn = toast.querySelector('.toast-close');
+  const handleClose = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    dismissToast(toast);
+  };
+  closeBtn.addEventListener('click', handleClose);
+  closeBtn.addEventListener('touchstart', handleClose, { passive: false });
+
+  // General toast body tap/click handlers to dismiss
+  const handleBodyClick = (e) => {
+    e.preventDefault();
+    dismissToast(toast);
+  };
+  toast.addEventListener('click', handleBodyClick);
+  toast.addEventListener('touchstart', handleBodyClick, { passive: false });
 
   container.appendChild(toast);
 
-  // Remove toast after duration
+  // Auto-remove toast after duration
   setTimeout(() => {
-    toast.style.animation = 'slideOutRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards';
-    toast.addEventListener('animationend', () => {
-      toast.remove();
-    });
+    dismissToast(toast);
   }, duration);
 }
 
