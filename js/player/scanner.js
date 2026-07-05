@@ -82,6 +82,8 @@ async function onScanSuccess(decodedText, decodedResult) {
 
     // 1. Correct checkpoint scanned! Stop camera.
     await stopScanner();
+    // Mark this checkpoint as scanned so it survives browser refresh
+    localStorage.setItem('quest_scanned_cp', gameState.currentCheckpoint.id);
     showToast('Node handshake authorized! Opening challenges...', 'success');
 
     // 2. Fetch questions pre-assigned for this player at this checkpoint
@@ -135,7 +137,7 @@ function onScanFailure(error) {
 }
 
 // Fetch assigned questions from database
-async function fetchCheckpointQuestions() {
+export async function fetchCheckpointQuestions() {
   const pId = gameState.player.id;
   const cpId = gameState.currentCheckpoint.id;
 

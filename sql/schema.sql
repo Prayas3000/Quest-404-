@@ -229,7 +229,7 @@ begin
   if v_player.current_checkpoint is null then
     select checkpoint_id into v_first_checkpoint
     from player_routes
-    where player_id = v_player.id
+    where player_id = v_player.id and is_completed = false
     order by route_order asc
     limit 1;
     

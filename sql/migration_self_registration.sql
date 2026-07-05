@@ -77,7 +77,7 @@ BEGIN
   IF v_player.current_checkpoint IS NULL THEN
     SELECT checkpoint_id INTO v_first_checkpoint
     FROM player_routes
-    WHERE player_id = v_player.id
+    WHERE player_id = v_player.id AND is_completed = false
     ORDER BY route_order asc
     LIMIT 1;
     

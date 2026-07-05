@@ -1,7 +1,7 @@
 // Player Game Central Coordinator
 import { supabase } from '../config.js';
 import { showToast, formatTime } from '../utils.js';
-import { initScanner, startScanner, stopScanner } from './scanner.js';
+import { initScanner, startScanner, stopScanner, fetchCheckpointQuestions } from './scanner.js';
 import { renderQuestions } from './questions.js';
 
 export const gameState = {
@@ -32,6 +32,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   gameState.token = token;
+
+  // Sync token to both localStorage AND URL so refresh always works
+  // (handles PWA launches, tab restores, and cleared localStorage)
+  localStorage.setItem('quest_player_token', token);
+  if (!params.get('token')) {
+    const url = new URL(window.location);
+    url.searchParams.set('token', token);
+    window.history.replaceState({}, '', url);
+  }
   
   // 2. Initialize scanner
   initScanner();
@@ -60,6 +69,7 @@ function setupUIHandlers() {
   // Play Again / Reset token
   document.getElementById('btn-play-again').addEventListener('click', () => {
     localStorage.removeItem('quest_player_token');
+    localStorage.removeItem('quest_scanned_cp');
     window.location.href = 'index.html';
   });
 }
@@ -216,7 +226,14 @@ export async function refreshPlayerState(showLoader = false) {
       if (sessionSubscription) { supabase.removeChannel(sessionSubscription); sessionSubscription = null; }
       if (routeSubscription) { supabase.removeChannel(routeSubscription); routeSubscription = null; }
 
-      switchScreen('screen-hint');
+      // Check if player already scanned this checkpoint (resume after browser refresh)
+      const scannedCp = localStorage.getItem('quest_scanned_cp');
+      if (scannedCp && scannedCp === gameState.currentCheckpoint.id) {
+        // Player already scanned this QR — go directly to questions
+        await fetchCheckpointQuestions();
+      } else {
+        switchScreen('screen-hint');
+      }
     }
   } catch (err) {
     console.error('Error initializing state:', err);
@@ -302,6 +319,7 @@ function syncTimer() {
 // Show final completed screen
 async function showGameCompletion() {
   if (gameState.timerInterval) clearInterval(gameState.timerInterval);
+  localStorage.removeItem('quest_scanned_cp');
   
   // Confetti celebration!
   if (typeof confetti !== 'undefined') {
