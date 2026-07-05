@@ -306,17 +306,22 @@
         <!-- Tab 6: Questions -->
         <section id="tab-questions" class="tab-pane">
           <div class="action-header flex justify-between align-center" style="margin-bottom: 1.5rem;">
-            <div class="flex" style="gap: 1rem; width: 60%;">
-              <select id="question-topic-filter" class="select font-mono" style="width: 50%;">
+            <div class="flex" style="gap: 1rem; width: 70%;">
+              <select id="question-topic-filter" class="select font-mono" style="width: 33%;">
                 <option value="">All Topics</option>
                 <option value="cybersecurity">Cybersecurity</option>
                 <option value="mathematics">Mathematics</option>
               </select>
-              <select id="question-difficulty-filter" class="select font-mono" style="width: 50%;">
+              <select id="question-difficulty-filter" class="select font-mono" style="width: 33%;">
                 <option value="">All Difficulties</option>
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
+              </select>
+              <select id="question-checkpoint-filter" class="select font-mono" style="width: 33%;">
+                <option value="">All Checkpoints</option>
+                <option value="unlinked">Unlinked (Random Pool)</option>
+                <!-- Checkpoint options populated dynamically -->
               </select>
             </div>
             <button class="btn btn--primary btn--sm" id="btn-create-question">+ CREATE QUESTION</button>
@@ -328,6 +333,7 @@
                 <tr>
                   <th>Topic</th>
                   <th>Difficulty</th>
+                  <th>Checkpoint</th>
                   <th>Type</th>
                   <th>Question Text</th>
                   <th>Correct Answer</th>
@@ -523,6 +529,14 @@
               <option value="hard">Hard</option>
             </select>
           </div>
+        </div>
+
+        <div class="form-group">
+          <label for="question-checkpoint">Link to Checkpoint <span style="color:var(--text-muted); font-weight:400;">(optional)</span></label>
+          <select id="question-checkpoint" class="select font-mono">
+            <option value="">None — Random Pool</option>
+            <!-- Checkpoint options populated dynamically -->
+          </select>
         </div>
 
         <div class="form-group">

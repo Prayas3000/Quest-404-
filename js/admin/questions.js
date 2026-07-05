@@ -4,23 +4,28 @@ import { showToast } from '../utils.js';
 import { state } from './admin.js';
 
 let currentAttachments = [];
+let checkpointsList = []; // Cached list of all checkpoints
 
 export function initQuestions() {
   const filterTopic = document.getElementById('question-topic-filter');
   const filterDiff = document.getElementById('question-difficulty-filter');
+  const filterCheckpoint = document.getElementById('question-checkpoint-filter');
   const btnCreate = document.getElementById('btn-create-question');
 
   // Filter change handlers
   filterTopic.addEventListener('change', loadQuestions);
   filterDiff.addEventListener('change', loadQuestions);
+  filterCheckpoint.addEventListener('change', loadQuestions);
 
   // Modal open button
-  btnCreate.addEventListener('click', () => {
+  btnCreate.addEventListener('click', async () => {
     document.getElementById('form-question').reset();
     document.getElementById('question-id-input').value = '';
     currentAttachments = [];
     renderAttachmentsPreview();
     toggleQuestionOptions(); // Updates input layout based on default selection (MCQ)
+    await populateCheckpointDropdowns();
+    document.getElementById('question-checkpoint').value = '';
     openModal('modal-question');
   });
 
@@ -34,6 +39,7 @@ export function initQuestions() {
   setupAttachmentHandlers();
 
   // Initial load
+  populateCheckpointDropdowns();
   loadQuestions();
 }
 
@@ -41,12 +47,18 @@ export function initQuestions() {
 export async function loadQuestions() {
   const topic = document.getElementById('question-topic-filter').value;
   const difficulty = document.getElementById('question-difficulty-filter').value;
+  const checkpointFilter = document.getElementById('question-checkpoint-filter').value;
 
   try {
     let query = supabase.from('questions').select('*');
 
     if (topic) query = query.eq('topic', topic);
     if (difficulty) query = query.eq('difficulty', difficulty);
+    if (checkpointFilter === 'unlinked') {
+      query = query.is('checkpoint_id', null);
+    } else if (checkpointFilter) {
+      query = query.eq('checkpoint_id', checkpointFilter);
+    }
 
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) throw error;
@@ -54,7 +66,7 @@ export async function loadQuestions() {
     state.questions = data || [];
     
     // Auto-seed if database is empty
-    if (state.questions.length === 0 && !topic && !difficulty) {
+    if (state.questions.length === 0 && !topic && !difficulty && !checkpointFilter) {
       await seedDefaultQuestions();
     } else {
       renderQuestions();
@@ -71,7 +83,7 @@ function renderQuestions() {
   tbody.innerHTML = '';
 
   if (state.questions.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No questions found matching criteria</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No questions found matching criteria</td></tr>`;
     return;
   }
 
@@ -85,12 +97,21 @@ function renderQuestions() {
       ansText = q.options[idx] ? `[${idx}] ${q.options[idx]}` : q.answer;
     }
 
+    // Find linked checkpoint name
+    let cpBadge = '<span class="badge badge--outline" style="border-color:var(--text-muted); color:var(--text-muted); font-size:0.75rem;">Random Pool</span>';
+    if (q.checkpoint_id) {
+      const cp = checkpointsList.find(c => c.id === q.checkpoint_id);
+      const cpName = cp ? cp.checkpoint_name : 'Unknown';
+      cpBadge = `<span class="badge badge--info" style="font-size:0.75rem;" title="${cpName}">${cpName}</span>`;
+    }
+
     tr.innerHTML = `
       <td><span class="badge ${q.topic === 'cybersecurity' ? 'badge--info' : 'badge--warning'}">${q.topic}</span></td>
       <td><span class="badge badge--outline" style="border-color:var(--text-muted); color:var(--text-muted);">${q.difficulty}</span></td>
+      <td>${cpBadge}</td>
       <td style="text-transform:uppercase; font-size:0.8rem;" class="font-mono">${q.question_type}</td>
-      <td style="max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${q.question}">${q.question}</td>
-      <td style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${ansText}">${ansText}</td>
+      <td style="max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${q.question}">${q.question}</td>
+      <td style="max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${ansText}">${ansText}</td>
       <td>
         <div class="flex" style="gap: 5px;">
           <button class="btn btn--outline btn--sm action-edit" data-id="${q.id}">EDIT</button>
@@ -131,7 +152,7 @@ async function handleSaveQuestion(e) {
     ];
   }
 
-  const payload = { topic, difficulty, question_type, question, options, answer, attachments: currentAttachments, is_active: true };
+  const payload = { topic, difficulty, question_type, question, options, answer, attachments: currentAttachments, is_active: true, checkpoint_id: document.getElementById('question-checkpoint').value || null };
 
   try {
     let result;
@@ -153,7 +174,7 @@ async function handleSaveQuestion(e) {
 }
 
 // Edit Question
-function editQuestion(id) {
+async function editQuestion(id) {
   const q = state.questions.find(item => item.id === id);
   if (!q) return;
 
@@ -165,6 +186,10 @@ function editQuestion(id) {
   document.getElementById('question-answer').value = q.answer;
 
   toggleQuestionOptions(); // Update layout
+
+  // Populate checkpoint dropdown and pre-select
+  await populateCheckpointDropdowns();
+  document.getElementById('question-checkpoint').value = q.checkpoint_id || '';
 
   currentAttachments = q.attachments || [];
   renderAttachmentsPreview();
@@ -465,4 +490,53 @@ function formatBytes(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
+
+async function populateCheckpointDropdowns() {
+  try {
+    const { data, error } = await supabase
+      .from('checkpoints')
+      .select('id, checkpoint_name, session_id, sessions ( title )')
+      .order('checkpoint_name', { ascending: true });
+    
+    if (error) throw error;
+    
+    checkpointsList = data || [];
+    
+    // Populate form dropdown
+    const formSelect = document.getElementById('question-checkpoint');
+    if (formSelect) {
+      const currentValue = formSelect.value;
+      formSelect.innerHTML = '<option value="">None — Random Pool</option>';
+      checkpointsList.forEach(cp => {
+        const sessionTitle = cp.sessions ? ` (${cp.sessions.title})` : '';
+        const opt = document.createElement('option');
+        opt.value = cp.id;
+        opt.textContent = `${cp.checkpoint_name}${sessionTitle}`;
+        formSelect.appendChild(opt);
+      });
+      formSelect.value = currentValue;
+    }
+
+    // Populate filter dropdown
+    const filterSelect = document.getElementById('question-checkpoint-filter');
+    if (filterSelect) {
+      const currentValue = filterSelect.value;
+      filterSelect.innerHTML = `
+        <option value="">All Checkpoints</option>
+        <option value="unlinked">Unlinked (Random Pool)</option>
+      `;
+      checkpointsList.forEach(cp => {
+        const sessionTitle = cp.sessions ? ` (${cp.sessions.title})` : '';
+        const opt = document.createElement('option');
+        opt.value = cp.id;
+        opt.textContent = `${cp.checkpoint_name}${sessionTitle}`;
+        filterSelect.appendChild(opt);
+      });
+      filterSelect.value = currentValue;
+    }
+  } catch (err) {
+    console.error('Error populating checkpoints dropdown:', err);
+  }
+}
+
 

@@ -96,25 +96,30 @@ BEGIN
     WHERE player_id = v_player.id and checkpoint_id = v_checkpoint_id;
 
     IF v_questions_count = 0 THEN
-      -- Assign unique random questions for this checkpoint
+      -- First: insert questions directly linked to this checkpoint
       INSERT INTO player_checkpoint_questions (player_id, checkpoint_id, question_id)
       SELECT v_player.id, v_checkpoint_id, q.id
       FROM questions q
-      WHERE q.is_active = true
-      -- Ensure player hasn't answered this question at previous checkpoints
-      AND q.id NOT IN (
-        SELECT question_id FROM player_answers WHERE player_id = v_player.id
-      )
-      -- Optional: try to avoid overlapping with teammates at this checkpoint
-      ORDER BY 
-        CASE WHEN q.id NOT IN (
-          SELECT question_id 
-          from player_checkpoint_questions pcq
-          join players teammate on pcq.player_id = teammate.id
-          where teammate.team_id = v_player.team_id and pcq.checkpoint_id = v_checkpoint_id
-        ) THEN 0 ELSE 1 END,
-        random()
-      LIMIT v_session.questions_per_checkpoint;
+      WHERE q.is_active = true AND q.checkpoint_id = v_checkpoint_id;
+
+      -- Count how many linked questions we got
+      SELECT count(*) INTO v_questions_count
+      FROM player_checkpoint_questions
+      WHERE player_id = v_player.id AND checkpoint_id = v_checkpoint_id;
+
+      -- Fill remaining slots with random unlinked questions (if needed)
+      IF v_questions_count < v_session.questions_per_checkpoint THEN
+        INSERT INTO player_checkpoint_questions (player_id, checkpoint_id, question_id)
+        SELECT v_player.id, v_checkpoint_id, q.id
+        FROM questions q
+        WHERE q.is_active = true
+          AND q.checkpoint_id IS NULL
+          AND q.id NOT IN (
+            SELECT question_id FROM player_answers WHERE player_id = v_player.id
+          )
+        ORDER BY random()
+        LIMIT (v_session.questions_per_checkpoint - v_questions_count);
+      END IF;
     END IF;
   END IF;
 

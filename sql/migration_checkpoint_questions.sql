@@ -1,62 +1,16 @@
--- Migration V2: Duplicate Name Prevention & Checkpoint-Linked Questions
--- Run this in your Supabase SQL Editor AFTER the initial schema and migration_self_registration.
+-- Migration: Link Questions to Checkpoints
+-- Run this in your Supabase SQL Editor.
 
--- ============================================================
--- 1. UNIQUE CONSTRAINT: Prevent duplicate player names per team
--- ============================================================
--- Partial unique index: only enforced when team_id is NOT NULL
--- (so unassigned players with the same name are allowed)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_player_name_per_team
-  ON players (team_id, lower(player_name))
-  WHERE team_id IS NOT NULL;
+-- 1. Add optional checkpoint_id column to questions table
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS checkpoint_id uuid REFERENCES checkpoints(id) ON DELETE SET NULL;
 
--- Also add a unique index at the session level to prevent duplicate
--- names during self-registration (before team assignment)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_player_name_per_session
-  ON players (session_id, lower(player_name));
+-- 2. Recreate questions_public view to include checkpoint_id
+DROP VIEW IF EXISTS questions_public;
+CREATE VIEW questions_public AS
+SELECT id, checkpoint_id, topic, difficulty, question_type, question, options, attachments, is_active
+FROM questions;
 
-
--- ============================================================
--- 2. NEW TABLE: checkpoint_questions (shared questions per checkpoint)
--- ============================================================
--- Instead of each player getting random questions, questions are
--- seeded once per checkpoint (by the first player to arrive) and
--- shared across all players at that checkpoint.
-
-CREATE TABLE IF NOT EXISTS checkpoint_questions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  session_id uuid REFERENCES sessions(id) ON DELETE CASCADE NOT NULL,
-  checkpoint_id uuid REFERENCES checkpoints(id) ON DELETE CASCADE NOT NULL,
-  question_id uuid REFERENCES questions(id) ON DELETE CASCADE NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  UNIQUE(session_id, checkpoint_id, question_id)
-);
-
--- Enable RLS
-ALTER TABLE checkpoint_questions ENABLE ROW LEVEL SECURITY;
-
--- Admin full access
-CREATE POLICY admin_all_checkpoint_questions_shared
-  ON checkpoint_questions FOR ALL TO authenticated
-  USING (true) WITH CHECK (true);
-
--- Anonymous read access (players need to see their assigned questions)
-CREATE POLICY anon_read_checkpoint_questions_shared
-  ON checkpoint_questions FOR SELECT TO anon
-  USING (true);
-
--- Performance indexes
-CREATE INDEX IF NOT EXISTS idx_checkpoint_questions_session_checkpoint
-  ON checkpoint_questions(session_id, checkpoint_id);
-
-
--- ============================================================
--- 3. UPDATED RPC: get_or_create_player_state
--- ============================================================
--- Now uses checkpoint_questions for shared question assignment.
--- First player to reach a checkpoint seeds the questions.
--- All subsequent players get the same questions.
-
+-- 3. Update get_or_create_player_state RPC with linked-question-first logic
 CREATE OR REPLACE FUNCTION get_or_create_player_state(p_token text)
 RETURNS json
 LANGUAGE plpgsql
@@ -104,7 +58,7 @@ BEGIN
     );
   END IF;
 
-  -- If current_checkpoint is null, find the first checkpoint on player's route
+  -- If current_checkpoint is null, find the first uncompleted checkpoint on player's route
   IF v_player.current_checkpoint IS NULL THEN
     SELECT checkpoint_id INTO v_first_checkpoint
     FROM player_routes

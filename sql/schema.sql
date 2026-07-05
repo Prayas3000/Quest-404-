@@ -62,6 +62,7 @@ create table players (
 -- 5. Questions Table (Stored securely, admin only)
 create table questions (
   id uuid primary key default gen_random_uuid(),
+  checkpoint_id uuid references checkpoints(id) on delete set null, -- optional: link question to a specific checkpoint
   topic text not null check (topic in ('cybersecurity', 'mathematics')),
   difficulty text not null check (difficulty in ('easy', 'medium', 'hard')),
   question_type text not null check (question_type in ('mcq', 'text')),
@@ -128,7 +129,7 @@ create unique index idx_unique_player_name_per_session
 
 -- Public Questions View (Excludes correct answer column)
 create or replace view questions_public as
-select id, topic, difficulty, question_type, question, options, attachments, is_active
+select id, checkpoint_id, topic, difficulty, question_type, question, options, attachments, is_active
 from questions;
 
 -- Leaderboard View (Aggregated team score calculations)
@@ -251,12 +252,31 @@ begin
 
     -- Step 2: If no shared questions exist yet, this player seeds them (first arrival)
     if v_shared_questions_count = 0 then
+      -- First: insert questions directly linked to this checkpoint
       insert into checkpoint_questions (session_id, checkpoint_id, question_id)
       select v_player.session_id, v_checkpoint_id, q.id
       from questions q
-      where q.is_active = true
-      order by random()
-      limit v_session.questions_per_checkpoint;
+      where q.is_active = true and q.checkpoint_id = v_checkpoint_id;
+
+      -- Count how many linked questions we got
+      select count(*) into v_shared_questions_count
+      from checkpoint_questions
+      where session_id = v_player.session_id and checkpoint_id = v_checkpoint_id;
+
+      -- Fill remaining slots with random unlinked questions (if needed)
+      if v_shared_questions_count < v_session.questions_per_checkpoint then
+        insert into checkpoint_questions (session_id, checkpoint_id, question_id)
+        select v_player.session_id, v_checkpoint_id, q.id
+        from questions q
+        where q.is_active = true
+          and q.checkpoint_id is null
+          and q.id not in (
+            select cq.question_id from checkpoint_questions cq
+            where cq.session_id = v_player.session_id
+          )
+        order by random()
+        limit (v_session.questions_per_checkpoint - v_shared_questions_count);
+      end if;
     end if;
 
     -- Step 3: Check if THIS player already has questions assigned for this checkpoint
