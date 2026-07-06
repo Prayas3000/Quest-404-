@@ -329,6 +329,25 @@
       }
     })();
 
+    // ============================================================
+    // PRE-FILL SESSION ID: Check for session/session_id query param
+    // ============================================================
+    // This allows sharing links like: index.html?session=UUID
+    (function prefillSessionId() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionParam = urlParams.get('session') || urlParams.get('session_id');
+      if (sessionParam) {
+        const regSessionInput = document.getElementById('reg-session-id');
+        if (regSessionInput) {
+          regSessionInput.value = sessionParam.trim();
+        }
+        const specSessionInput = document.getElementById('game-id');
+        if (specSessionInput) {
+          specSessionInput.value = sessionParam.trim();
+        }
+      }
+    })();
+
     // Tab switching logic
     const tabRegister = document.getElementById('tab-btn-register');
     const tabSpectator = document.getElementById('tab-btn-spectator');
