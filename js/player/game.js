@@ -72,6 +72,15 @@ function setupUIHandlers() {
     localStorage.removeItem('quest_scanned_cp');
     window.location.href = 'index.html';
   });
+
+  // Back-button trap: prevent accidental navigation away from the game
+  // Push a dummy history state so pressing Back doesn't leave play.html
+  history.pushState({ quest: true }, '');
+  window.addEventListener('popstate', (e) => {
+    // Re-push the state to keep the player on this page
+    history.pushState({ quest: true }, '');
+    showToast('Game in progress — use the menu to exit.', 'warning');
+  });
 }
 
 // Switch between full screen views

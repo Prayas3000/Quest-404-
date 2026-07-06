@@ -480,6 +480,10 @@ create policy anon_read_checkpoint_questions on player_checkpoint_questions for 
 -- 8. Shared Checkpoint Questions: Anonymous can read
 create policy anon_read_checkpoint_questions_shared on checkpoint_questions for select to anon using (true);
 
+-- 9. Questions: Anonymous can read active questions via questions_public view
+-- (The view already excludes the answer column, so this is safe)
+create policy anon_read_questions on questions for select to anon using (is_active = true);
+
 -- --- INDEXES FOR PERFORMANCE ---
 create index idx_teams_session_id on teams(session_id);
 create index idx_checkpoints_session_id on checkpoints(session_id);

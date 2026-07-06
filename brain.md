@@ -126,6 +126,18 @@ During a code review of the schema and Javascript modules, the following bugs an
 *   **The Bug:** In [sessions.js](file:///E:/Quest%20Hunt/js/admin/sessions.js#L188-L232), `startSession` allows starting a game even if no player routes have been generated.
 *   **Consequence:** If the admin starts the session without generating routes, players are presented with a blank waiting screen indefinitely, causing day-of-event confusion.
 
+### 5. Missing Anonymous Read Policy on Questions Table (Critical) — ✅ FIXED
+*   **The Bug:** The `questions` table has RLS enabled but only has an `authenticated` policy. The `questions_public` view (which hides the `answer` column) inherits RLS from its base `questions` table. Since players connect as `anon`, they get **0 rows** back from `questions_public`.
+*   **Consequence:** After scanning a QR checkpoint, players see "No questions assigned by system. Contact admin." because `fetchCheckpointQuestions()` in [scanner.js](file:///E:/Quest%20Hunt/js/player/scanner.js#L160-L164) queries `questions_public` and gets an empty result. This breaks all question loading — not just checkpoint-linked ones.
+*   **Fix:** Added `anon_read_questions` policy on `questions` for `SELECT` to `anon` with `USING (is_active = true)`. Applied in [schema.sql](file:///E:/Quest%20Hunt/sql/schema.sql), [migration_checkpoint_questions.sql](file:///E:/Quest%20Hunt/sql/migration_checkpoint_questions.sql), and standalone [hotfix_anon_questions_policy.sql](file:///E:/Quest%20Hunt/sql/hotfix_anon_questions_policy.sql).
+
+### 6. Checkpoint-Linked Questions Appearing at Random Checkpoints (Critical) — ✅ FIXED
+*   **The Bug:** When an admin links a question to a specific checkpoint (e.g. SHOWCASE), it should only appear at that checkpoint. However, if the question was previously in the random pool and had already been seeded into `checkpoint_questions` for a different checkpoint, those stale entries were never cleaned up. Additionally, the admin save handler in [questions.js](file:///E:/Quest%20Hunt/js/admin/questions.js) did not remove old checkpoint assignments when the checkpoint link changed.
+*   **Consequence:** Questions linked to SHOWCASE would still appear at other random checkpoints because stale `checkpoint_questions` and `player_checkpoint_questions` entries persisted from before the link was established.
+*   **Fix (2 parts):**
+    1.  **Admin JS cleanup** ([questions.js](file:///E:/Quest%20Hunt/js/admin/questions.js)): When saving a question, stale `checkpoint_questions` and `player_checkpoint_questions` entries for the wrong checkpoint are now deleted.
+    2.  **SQL hotfix** ([hotfix_anon_questions_policy.sql](file:///E:/Quest%20Hunt/sql/hotfix_anon_questions_policy.sql)): Cleans up existing stale data and re-deploys the latest `get_or_create_player_state` RPC with `checkpoint_id IS NULL` filter on the random pool.
+
 ---
 
 ## 5. Resolution & Fix Implementation Plan

@@ -1,16 +1,63 @@
--- Migration: Link Questions to Checkpoints
+-- HOTFIX: Fix checkpoint-linked questions appearing at random checkpoints
 -- Run this in your Supabase SQL Editor.
+--
+-- PROBLEM: When a question is linked to a specific checkpoint (e.g. SHOWCASE),
+-- it should ONLY appear at that checkpoint. But it was appearing at random
+-- checkpoints because:
+-- 1. Stale entries in checkpoint_questions from before the question was linked
+-- 2. The RPC function might be outdated and not filtering by checkpoint_id
+--
+-- This script fixes both issues.
 
--- 1. Add optional checkpoint_id column to questions table
-ALTER TABLE questions ADD COLUMN IF NOT EXISTS checkpoint_id uuid REFERENCES checkpoints(id) ON DELETE SET NULL;
+-- ============================================================
+-- STEP 1: Clean up stale checkpoint_questions entries
+-- ============================================================
+-- Remove entries where a question is assigned to the WRONG checkpoint.
+-- If a question has checkpoint_id = X, delete any checkpoint_questions
+-- rows where checkpoint_id != X (those are stale random assignments).
 
--- 2. Recreate questions_public view to include checkpoint_id
-DROP VIEW IF EXISTS questions_public;
-CREATE VIEW questions_public AS
-SELECT id, checkpoint_id, topic, difficulty, question_type, question, options, attachments, is_active
-FROM questions;
+DELETE FROM player_checkpoint_questions
+WHERE id IN (
+  SELECT pcq.id
+  FROM player_checkpoint_questions pcq
+  JOIN questions q ON q.id = pcq.question_id
+  WHERE q.checkpoint_id IS NOT NULL
+    AND pcq.checkpoint_id != q.checkpoint_id
+);
 
--- 3. Update get_or_create_player_state RPC with linked-question-first logic
+DELETE FROM checkpoint_questions
+WHERE id IN (
+  SELECT cq.id
+  FROM checkpoint_questions cq
+  JOIN questions q ON q.id = cq.question_id
+  WHERE q.checkpoint_id IS NOT NULL
+    AND cq.checkpoint_id != q.checkpoint_id
+);
+
+-- ============================================================
+-- STEP 2: Add anonymous read policy (if missing)
+-- ============================================================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'questions' AND policyname = 'anon_read_questions'
+  ) THEN
+    CREATE POLICY anon_read_questions ON questions FOR SELECT TO anon USING (is_active = true);
+    RAISE NOTICE 'Policy anon_read_questions created.';
+  ELSE
+    RAISE NOTICE 'Policy anon_read_questions already exists.';
+  END IF;
+END
+$$;
+
+-- ============================================================
+-- STEP 3: Update the RPC function with checkpoint-aware logic
+-- ============================================================
+-- This ensures:
+--   a) Questions linked to a checkpoint are assigned ONLY to that checkpoint
+--   b) Random fill only picks from unlinked questions (checkpoint_id IS NULL)
+--   c) Questions linked to OTHER checkpoints are NEVER in the random pool
+
 CREATE OR REPLACE FUNCTION get_or_create_player_state(p_token text)
 RETURNS json
 LANGUAGE plpgsql
@@ -84,7 +131,7 @@ BEGIN
 
     -- Step 2: If no shared questions exist yet, this player seeds them (first arrival)
     IF v_shared_questions_count = 0 THEN
-      -- First: insert questions directly linked to this checkpoint
+      -- First: insert questions directly linked to THIS checkpoint
       INSERT INTO checkpoint_questions (session_id, checkpoint_id, question_id)
       SELECT v_player.session_id, v_checkpoint_id, q.id
       FROM questions q
@@ -95,7 +142,9 @@ BEGIN
       FROM checkpoint_questions
       WHERE session_id = v_player.session_id AND checkpoint_id = v_checkpoint_id;
 
-      -- Fill remaining slots with random unlinked questions (if needed)
+      -- Fill remaining slots with random UNLINKED questions only
+      -- KEY: checkpoint_id IS NULL ensures questions linked to OTHER checkpoints
+      -- are NEVER pulled into the random pool
       IF v_shared_questions_count < v_session.questions_per_checkpoint THEN
         INSERT INTO checkpoint_questions (session_id, checkpoint_id, question_id)
         SELECT v_player.session_id, v_checkpoint_id, q.id
@@ -144,17 +193,4 @@ BEGIN
     )
   );
 END;
-$$;
-
--- 4. Add anonymous read policy on questions table for the questions_public view
--- The view excludes the answer column, but it inherits RLS from the base table.
--- Without this policy, anonymous players get 0 rows from questions_public.
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'questions' AND policyname = 'anon_read_questions'
-  ) THEN
-    CREATE POLICY anon_read_questions ON questions FOR SELECT TO anon USING (is_active = true);
-  END IF;
-END
 $$;

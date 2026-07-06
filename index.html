@@ -166,6 +166,30 @@
   </header>
 
   <main class="hero-container">
+
+    <!-- Resume Banner (hidden by default, shown when active session detected) -->
+    <div id="resume-banner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:100; background: linear-gradient(135deg, rgba(0,180,216,0.95), rgba(0,150,199,0.95)); padding: 1rem 1.5rem; text-align:center; animation: slideDown 0.4s ease-out; box-shadow: 0 4px 20px rgba(0,180,216,0.3);">
+      <div style="max-width: 500px; margin: 0 auto;">
+        <div style="font-family: var(--font-title); font-size: 1rem; color: white; font-weight: 700; letter-spacing: 1px; margin-bottom: 0.4rem;">
+          ⚡ ACTIVE SESSION DETECTED
+        </div>
+        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.9);">
+          Resuming as <strong id="resume-player-name">Player</strong> in <strong id="resume-session-title">Session</strong>...
+        </div>
+        <div style="margin-top: 0.6rem; display: flex; gap: 0.75rem; justify-content: center; align-items: center;">
+          <div class="terminal-loader" style="width: 120px; height: 3px;">
+            <div class="loader-bar" style="height: 3px; background: white;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes slideDown {
+        from { transform: translateY(-100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    </style>
+
     <h1 class="glitch-title">QUEST 404</h1>
     <div class="subtitle">Scavenger Hunt Cybersecurity Interface</div>
 
@@ -252,6 +276,58 @@
           .catch(err => console.error('Service Worker registration failed:', err));
       });
     }
+
+    // ============================================================
+    // AUTO-RESUME: Check if player has an active session token
+    // ============================================================
+    // If a player accidentally presses Back/Home mid-game, this
+    // detects their existing token and offers to resume immediately.
+    (async function checkExistingSession() {
+      const existingToken = localStorage.getItem('quest_player_token');
+      if (!existingToken) return;
+
+      try {
+        // Validate the token against the database
+        const { data, error } = await supabase.rpc('get_or_create_player_state', {
+          p_token: existingToken
+        });
+
+        if (error || !data || !data.success) {
+          // Token is invalid or expired — clear it and let them re-register
+          localStorage.removeItem('quest_player_token');
+          return;
+        }
+
+        // Token is valid — show resume banner and auto-redirect
+        const session = data.session;
+        const player = data.player;
+
+        // Don't auto-resume for completed sessions
+        if (session.status === 'completed') {
+          localStorage.removeItem('quest_player_token');
+          return;
+        }
+
+        // Show resume banner
+        const banner = document.getElementById('resume-banner');
+        const bannerName = document.getElementById('resume-player-name');
+        const bannerSession = document.getElementById('resume-session-title');
+        if (banner && bannerName && bannerSession) {
+          bannerName.textContent = player.player_name;
+          bannerSession.textContent = session.title;
+          banner.style.display = 'block';
+        }
+
+        // Auto-redirect after a short delay so the player sees the banner
+        setTimeout(() => {
+          window.location.href = `play.html?token=${existingToken}`;
+        }, 2000);
+
+      } catch (err) {
+        console.warn('Auto-resume check failed:', err);
+        // Non-fatal — just let the page load normally
+      }
+    })();
 
     // Tab switching logic
     const tabRegister = document.getElementById('tab-btn-register');

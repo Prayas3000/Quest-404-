@@ -152,7 +152,8 @@ async function handleSaveQuestion(e) {
     ];
   }
 
-  const payload = { topic, difficulty, question_type, question, options, answer, attachments: currentAttachments, is_active: true, checkpoint_id: document.getElementById('question-checkpoint').value || null };
+  const newCheckpointId = document.getElementById('question-checkpoint').value || null;
+  const payload = { topic, difficulty, question_type, question, options, answer, attachments: currentAttachments, is_active: true, checkpoint_id: newCheckpointId };
 
   try {
     let result;
@@ -163,6 +164,39 @@ async function handleSaveQuestion(e) {
     }
 
     if (result.error) throw result.error;
+
+    // Clean up stale checkpoint assignments when checkpoint link changes.
+    // If the question was previously randomly assigned to Checkpoint A, and the admin
+    // now links it to SHOWCASE, we must remove the old Checkpoint A entry so the
+    // question stops appearing there.
+    if (qId) {
+      let cleanupQuery = supabase
+        .from('checkpoint_questions')
+        .delete()
+        .eq('question_id', qId);
+
+      // If linking to a specific checkpoint, keep that entry but remove all others.
+      // If unlinking (null), remove all entries so it returns to the random pool cleanly.
+      if (newCheckpointId) {
+        cleanupQuery = cleanupQuery.neq('checkpoint_id', newCheckpointId);
+      }
+
+      const { error: cleanupErr } = await cleanupQuery;
+      if (cleanupErr) console.warn('Checkpoint cleanup warning:', cleanupErr);
+
+      // Also clean stale player_checkpoint_questions so players don't see wrong questions
+      let playerCleanupQuery = supabase
+        .from('player_checkpoint_questions')
+        .delete()
+        .eq('question_id', qId);
+
+      if (newCheckpointId) {
+        playerCleanupQuery = playerCleanupQuery.neq('checkpoint_id', newCheckpointId);
+      }
+
+      const { error: playerCleanupErr } = await playerCleanupQuery;
+      if (playerCleanupErr) console.warn('Player questions cleanup warning:', playerCleanupErr);
+    }
 
     showToast('Question details updated in bank', 'success');
     closeModal('modal-question');
