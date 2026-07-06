@@ -8,6 +8,13 @@ let sessionCheckerChannel = null;
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', async () => {
+  // Prevent player access to leaderboard
+  const existingToken = localStorage.getItem('quest_player_token');
+  if (existingToken) {
+    window.location.replace(`play.html?token=${existingToken}`);
+    return;
+  }
+
   setupUIHandlers();
   await loadSessionsList();
 });

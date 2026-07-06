@@ -402,13 +402,8 @@ async function handleAnswersSubmission(e) {
     if (error) throw error;
     if (!data.success) throw new Error(data.error);
 
-    // Show correct / total results toast
-    const msg = `TRANSMISSION COMMITTED // Correct: ${data.correct}/${data.total}`;
-    if (data.correct === data.total) {
-      showToast(msg, 'success');
-    } else {
-      showToast(msg, 'info');
-    }
+    // Show transmission confirmation toast (without disclosing correct/incorrect count)
+    showToast('TRANSMISSION COMMITTED // Answers submitted successfully', 'success');
 
     // Refresh state and load next checkpoint
     setTimeout(async () => {
