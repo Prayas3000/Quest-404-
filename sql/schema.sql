@@ -188,7 +188,6 @@ as $$
 declare
   v_player record;
   v_session record;
-  v_questions_count integer;
   v_shared_questions_count integer;
   v_checkpoint_id uuid;
   v_first_checkpoint uuid;
@@ -245,52 +244,43 @@ begin
   -- If there is a current checkpoint, handle shared question assignment
   if v_checkpoint_id is not null then
 
-    -- Step 1: Check if shared checkpoint_questions exist for this session+checkpoint
+    -- Step 1: Always sync directly-linked questions into checkpoint_questions.
+    -- Uses ON CONFLICT to upsert, so newly linked questions are always picked up
+    -- even if the checkpoint was previously seeded.
+    insert into checkpoint_questions (session_id, checkpoint_id, question_id)
+    select v_player.session_id, v_checkpoint_id, q.id
+    from questions q
+    where q.is_active = true and q.checkpoint_id = v_checkpoint_id
+    on conflict (session_id, checkpoint_id, question_id) do nothing;
+
+    -- Step 2: Count current shared questions for this checkpoint
     select count(*) into v_shared_questions_count
     from checkpoint_questions
     where session_id = v_player.session_id and checkpoint_id = v_checkpoint_id;
 
-    -- Step 2: If no shared questions exist yet, this player seeds them (first arrival)
-    if v_shared_questions_count = 0 then
-      -- First: insert questions directly linked to this checkpoint
+    -- Step 3: Fill remaining slots with random unlinked questions (if needed)
+    if v_shared_questions_count < v_session.questions_per_checkpoint then
       insert into checkpoint_questions (session_id, checkpoint_id, question_id)
       select v_player.session_id, v_checkpoint_id, q.id
       from questions q
-      where q.is_active = true and q.checkpoint_id = v_checkpoint_id;
-
-      -- Count how many linked questions we got
-      select count(*) into v_shared_questions_count
-      from checkpoint_questions
-      where session_id = v_player.session_id and checkpoint_id = v_checkpoint_id;
-
-      -- Fill remaining slots with random unlinked questions (if needed)
-      if v_shared_questions_count < v_session.questions_per_checkpoint then
-        insert into checkpoint_questions (session_id, checkpoint_id, question_id)
-        select v_player.session_id, v_checkpoint_id, q.id
-        from questions q
-        where q.is_active = true
-          and q.checkpoint_id is null
-          and q.id not in (
-            select cq.question_id from checkpoint_questions cq
-            where cq.session_id = v_player.session_id
-          )
-        order by random()
-        limit (v_session.questions_per_checkpoint - v_shared_questions_count);
-      end if;
+      where q.is_active = true
+        and q.checkpoint_id is null
+        and q.id not in (
+          select cq.question_id from checkpoint_questions cq
+          where cq.session_id = v_player.session_id
+        )
+      order by random()
+      limit (v_session.questions_per_checkpoint - v_shared_questions_count);
     end if;
 
-    -- Step 3: Check if THIS player already has questions assigned for this checkpoint
-    select count(*) into v_questions_count
-    from player_checkpoint_questions
-    where player_id = v_player.id and checkpoint_id = v_checkpoint_id;
-
-    -- Step 4: If not, copy shared questions into player_checkpoint_questions
-    if v_questions_count = 0 then
-      insert into player_checkpoint_questions (player_id, checkpoint_id, question_id)
-      select v_player.id, v_checkpoint_id, cq.question_id
-      from checkpoint_questions cq
-      where cq.session_id = v_player.session_id and cq.checkpoint_id = v_checkpoint_id;
-    end if;
+    -- Step 4: Sync any missing shared questions into this player's assignments.
+    -- Uses ON CONFLICT to avoid duplicates, so newly added checkpoint questions
+    -- are always picked up even if the player was previously assigned.
+    insert into player_checkpoint_questions (player_id, checkpoint_id, question_id)
+    select v_player.id, v_checkpoint_id, cq.question_id
+    from checkpoint_questions cq
+    where cq.session_id = v_player.session_id and cq.checkpoint_id = v_checkpoint_id
+    on conflict (player_id, checkpoint_id, question_id) do nothing;
 
   end if;
 

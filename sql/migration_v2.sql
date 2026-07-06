@@ -123,52 +123,43 @@ BEGIN
   -- If there is a current checkpoint, handle shared question assignment
   IF v_checkpoint_id IS NOT NULL THEN
 
-    -- Step 1: Check if shared checkpoint_questions exist for this session+checkpoint
+    -- Step 1: Always sync directly-linked questions into checkpoint_questions.
+    -- Uses ON CONFLICT to upsert, so newly linked questions are always picked up
+    -- even if the checkpoint was previously seeded.
+    INSERT INTO checkpoint_questions (session_id, checkpoint_id, question_id)
+    SELECT v_player.session_id, v_checkpoint_id, q.id
+    FROM questions q
+    WHERE q.is_active = true AND q.checkpoint_id = v_checkpoint_id
+    ON CONFLICT (session_id, checkpoint_id, question_id) DO NOTHING;
+
+    -- Step 2: Count current shared questions for this checkpoint
     SELECT count(*) INTO v_shared_questions_count
     FROM checkpoint_questions
     WHERE session_id = v_player.session_id AND checkpoint_id = v_checkpoint_id;
 
-    -- Step 2: If no shared questions exist yet, this player seeds them (first arrival)
-    IF v_shared_questions_count = 0 THEN
-      -- First: insert questions directly linked to this checkpoint
+    -- Step 3: Fill remaining slots with random unlinked questions (if needed)
+    IF v_shared_questions_count < v_session.questions_per_checkpoint THEN
       INSERT INTO checkpoint_questions (session_id, checkpoint_id, question_id)
       SELECT v_player.session_id, v_checkpoint_id, q.id
       FROM questions q
-      WHERE q.is_active = true AND q.checkpoint_id = v_checkpoint_id;
-
-      -- Count how many linked questions we got
-      SELECT count(*) INTO v_shared_questions_count
-      FROM checkpoint_questions
-      WHERE session_id = v_player.session_id AND checkpoint_id = v_checkpoint_id;
-
-      -- Fill remaining slots with random unlinked questions (if needed)
-      IF v_shared_questions_count < v_session.questions_per_checkpoint THEN
-        INSERT INTO checkpoint_questions (session_id, checkpoint_id, question_id)
-        SELECT v_player.session_id, v_checkpoint_id, q.id
-        FROM questions q
-        WHERE q.is_active = true
-          AND q.checkpoint_id IS NULL
-          AND q.id NOT IN (
-            SELECT cq.question_id FROM checkpoint_questions cq
-            WHERE cq.session_id = v_player.session_id
-          )
-        ORDER BY random()
-        LIMIT (v_session.questions_per_checkpoint - v_shared_questions_count);
-      END IF;
+      WHERE q.is_active = true
+        AND q.checkpoint_id IS NULL
+        AND q.id NOT IN (
+          SELECT cq.question_id FROM checkpoint_questions cq
+          WHERE cq.session_id = v_player.session_id
+        )
+      ORDER BY random()
+      LIMIT (v_session.questions_per_checkpoint - v_shared_questions_count);
     END IF;
 
-    -- Step 3: Check if THIS player already has questions assigned for this checkpoint
-    SELECT count(*) INTO v_questions_count
-    FROM player_checkpoint_questions
-    WHERE player_id = v_player.id AND checkpoint_id = v_checkpoint_id;
-
-    -- Step 4: If not, copy shared questions into player_checkpoint_questions
-    IF v_questions_count = 0 THEN
-      INSERT INTO player_checkpoint_questions (player_id, checkpoint_id, question_id)
-      SELECT v_player.id, v_checkpoint_id, cq.question_id
-      FROM checkpoint_questions cq
-      WHERE cq.session_id = v_player.session_id AND cq.checkpoint_id = v_checkpoint_id;
-    END IF;
+    -- Step 4: Sync any missing shared questions into this player's assignments.
+    -- Uses ON CONFLICT to avoid duplicates, so newly added checkpoint questions
+    -- are always picked up even if the player was previously assigned.
+    INSERT INTO player_checkpoint_questions (player_id, checkpoint_id, question_id)
+    SELECT v_player.id, v_checkpoint_id, cq.question_id
+    FROM checkpoint_questions cq
+    WHERE cq.session_id = v_player.session_id AND cq.checkpoint_id = v_checkpoint_id
+    ON CONFLICT (player_id, checkpoint_id, question_id) DO NOTHING;
 
   END IF;
 

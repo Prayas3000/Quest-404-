@@ -1,16 +1,14 @@
--- Migration: Link Questions to Checkpoints
--- Run this in your Supabase SQL Editor.
+-- HOTFIX: Fix missing checkpoint questions when admin links questions after first seeding.
+-- Run this in your Supabase SQL Editor to apply the fix to your live database.
+--
+-- BUG: If admin linked 5 questions to a checkpoint but only 4 appeared, it's because
+-- the old logic only seeded checkpoint_questions ONCE (when the first player arrived).
+-- Any questions linked AFTER that initial seeding were silently ignored.
+-- Similarly, if a player was already assigned questions, new ones would never sync.
+--
+-- FIX: Always upsert linked questions into checkpoint_questions and always sync
+-- missing questions into player_checkpoint_questions using ON CONFLICT DO NOTHING.
 
--- 1. Add optional checkpoint_id column to questions table
-ALTER TABLE questions ADD COLUMN IF NOT EXISTS checkpoint_id uuid REFERENCES checkpoints(id) ON DELETE SET NULL;
-
--- 2. Recreate questions_public view to include checkpoint_id
-DROP VIEW IF EXISTS questions_public;
-CREATE VIEW questions_public AS
-SELECT id, checkpoint_id, topic, difficulty, question_type, question, options, attachments, is_active
-FROM questions;
-
--- 3. Update get_or_create_player_state RPC with linked-question-first logic
 CREATE OR REPLACE FUNCTION get_or_create_player_state(p_token text)
 RETURNS json
 LANGUAGE plpgsql
@@ -19,8 +17,6 @@ AS $$
 DECLARE
   v_player record;
   v_session record;
-  v_current_route record;
-  v_questions_count integer;
   v_shared_questions_count integer;
   v_checkpoint_id uuid;
   v_first_checkpoint uuid;
@@ -65,7 +61,7 @@ BEGIN
     WHERE player_id = v_player.id AND is_completed = false
     ORDER BY route_order ASC
     LIMIT 1;
-    
+
     IF v_first_checkpoint IS NOT NULL THEN
       UPDATE players SET current_checkpoint = v_first_checkpoint WHERE id = v_player.id;
       v_player.current_checkpoint := v_first_checkpoint;
@@ -135,17 +131,4 @@ BEGIN
     )
   );
 END;
-$$;
-
--- 4. Add anonymous read policy on questions table for the questions_public view
--- The view excludes the answer column, but it inherits RLS from the base table.
--- Without this policy, anonymous players get 0 rows from questions_public.
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'questions' AND policyname = 'anon_read_questions'
-  ) THEN
-    CREATE POLICY anon_read_questions ON questions FOR SELECT TO anon USING (is_active = true);
-  END IF;
-END
 $$;
