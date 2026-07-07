@@ -13,15 +13,59 @@
 <body>
   <div class="scanlines"></div>
 
+  <!-- Spectator Suspense Intro Overlay -->
+  <div id="spectator-intro" class="spectator-intro" style="display: none;">
+    <div class="intro-noise"></div>
+    <div class="intro-scanner"></div>
+    <button id="skip-intro-btn" class="btn btn--outline btn--sm" style="position: absolute; top: 1.5rem; right: 1.5rem; z-index: 100010; font-family: var(--font-title); font-size: 0.75rem; border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.7); cursor: pointer;">
+      SKIP INTRO >>
+    </button>
+    <div class="intro-content">
+      <!-- Stage 1: Loading/Decryption -->
+      <div id="intro-stage-loading" class="intro-stage">
+        <h2 class="intro-title" id="intro-status-text">ESTABLISHING TRANSMISSION</h2>
+        <div class="intro-progress-container">
+          <div class="intro-progress-bar" id="intro-progress"></div>
+        </div>
+        <div class="intro-logs font-mono" id="intro-logs"></div>
+      </div>
+      
+      <!-- Stage 2: Countdown -->
+      <div id="intro-stage-countdown" class="intro-stage" style="display: none;">
+        <h3 class="font-mono" style="color: var(--color-primary); letter-spacing: 2px; margin-bottom: 1.5rem;">
+          > DECLASSIFYING FINAL STANDINGS <
+        </h3>
+        <div class="intro-countdown" id="intro-countdown">3</div>
+      </div>
+
+      <!-- Stage 3: Climax Reveal -->
+      <div id="intro-stage-reveal" class="intro-stage" style="display: none;">
+        <div class="graffiti-spray">CHAMPION</div>
+        <h1 class="reveal-team" id="intro-winner-team">TEAM NAME</h1>
+        <div class="reveal-badge font-mono" id="intro-winner-stats">0 PTS // 0 CPS</div>
+        <br>
+        <button id="intro-enter-btn" class="btn btn--primary" style="margin-top: 2.5rem; animation: pulse-neon-primary 1.5s infinite alternate; font-family: var(--font-title); cursor: pointer;">
+          ENTER SPECTATOR CONSOLE
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Header Nav -->
   <header class="leaderboard-header">
     <a href="index.html" class="logo">QUEST 404</a>
     
-    <div class="flex align-center" style="gap: 1rem;">
+    <div class="flex align-center flex-wrap" style="gap: 1rem;">
       <select id="leaderboard-session-select" class="select font-mono" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-width: 200px;">
         <option value="">Loading Sessions...</option>
       </select>
       <span class="badge badge--success" id="leaderboard-status-badge">LIVE TRACKING</span>
+      <button id="show-winner-btn" class="btn btn--primary btn--sm" style="display: none; padding: 0.4rem 0.8rem; font-size: 0.8rem; font-family: var(--font-title); font-weight: 700;">
+        🏆 REVEAL CHAMPION
+      </button>
+      <button id="replay-intro-btn" class="btn btn--outline btn--sm" style="display: none; padding: 0.4rem 0.8rem; font-size: 0.8rem; font-family: var(--font-title); font-weight: 700;">
+        🎬 INTRO SHOW
+      </button>
     </div>
   </header>
 
@@ -85,6 +129,42 @@
       </div>
     </div>
   </main>
+
+  <!-- Winner Announcement Overlay -->
+  <div id="winner-overlay" class="winner-overlay" style="display: none;">
+    <div class="winner-overlay-bg"></div>
+    <div class="winner-card-container">
+      <div class="winner-card">
+        <div class="winner-glow"></div>
+        <div class="winner-ribbon">🏆 CHAMPION DETECTED 🏆</div>
+        
+        <!-- Animated Party Poppers -->
+        <div class="popper-left popper-emoji">🎉</div>
+        <div class="popper-right popper-emoji">🎉</div>
+        
+        <div class="winner-trophy">👑</div>
+        <h2 class="winner-team-name font-title glow-text-primary" id="winner-name-text">TEAM NAME</h2>
+        <div class="winner-stats-container">
+          <div class="winner-stat font-mono">
+            <span class="stat-label">SCORE</span>
+            <span class="stat-val text-primary" id="winner-score-text">0 PTS</span>
+          </div>
+          <div class="winner-stat font-mono">
+            <span class="stat-label">CHECKPOINTS</span>
+            <span class="stat-val text-secondary" id="winner-cps-text">0</span>
+          </div>
+          <div class="winner-stat font-mono">
+            <span class="stat-label">TIME</span>
+            <span class="stat-val text-accent" id="winner-time-text">00:00</span>
+          </div>
+        </div>
+        <div class="winner-actions">
+          <button class="btn btn--secondary" id="winner-close-btn">DISMISS</button>
+          <button class="btn btn--primary" id="winner-replay-btn">🎉 CELEBRATE</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- External libraries -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

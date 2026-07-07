@@ -335,19 +335,6 @@ async function showGameCompletion() {
     confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
   }
 
-  // Load player answers to display score
-  try {
-    const { data } = await supabase
-      .from('player_answers')
-      .select('id, is_correct')
-      .eq('player_id', gameState.player.id);
-    
-    const score = data ? data.filter(a => a.is_correct).length : 0;
-    document.getElementById('summary-score').innerText = `${score} points`;
-  } catch (err) {
-    console.error(err);
-  }
-
   switchScreen('screen-completed');
 }
 

@@ -6,6 +6,12 @@ let selectedSessionId = null;
 let realtimeChannel = null;
 let sessionCheckerChannel = null;
 
+let latestWinner = null;
+let introLogInterval = null;
+let introCountdownInterval = null;
+let introAutoDismissTimeout = null;
+let introConfettiInterval = null;
+
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', async () => {
   // Prevent player access to leaderboard
@@ -19,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadSessionsList();
 });
 
-// Setup dropdown selectors
+// Setup dropdown selectors & overlay buttons
 function setupUIHandlers() {
   const select = document.getElementById('leaderboard-session-select');
   select.addEventListener('change', () => {
@@ -33,6 +39,98 @@ function setupUIHandlers() {
       initializeLeaderboard();
     }
   });
+
+  // Winner overlay close button
+  const closeBtn = document.getElementById('winner-close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      const overlay = document.getElementById('winner-overlay');
+      if (overlay) overlay.style.display = 'none';
+    });
+  }
+
+  // Winner overlay celebrate again button
+  const replayBtn = document.getElementById('winner-replay-btn');
+  if (replayBtn) {
+    replayBtn.addEventListener('click', () => {
+      // Re-run the visual flash effect
+      const flash = document.createElement('div');
+      flash.className = 'screen-flash';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 400);
+
+      // Re-trigger the animations on the card by resetting class/animation
+      const card = document.querySelector('.winner-card');
+      if (card) {
+        card.style.animation = 'none';
+        void card.offsetWidth; // Reflow
+        card.style.animation = 'popIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+      }
+      runDramaticConfettiPoppers();
+    });
+  }
+
+  // Header "Show Winner" button
+  const showWinnerBtn = document.getElementById('show-winner-btn');
+  if (showWinnerBtn) {
+    showWinnerBtn.addEventListener('click', async () => {
+      if (!selectedSessionId) return;
+      try {
+        const { data: standings } = await supabase
+          .from('leaderboard_view')
+          .select('*')
+          .eq('session_id', selectedSessionId);
+
+        const sorted = (standings || []).sort((a, b) => {
+          if (b.total_score !== a.total_score) return b.total_score - a.total_score;
+          return a.elapsed_seconds - b.elapsed_seconds;
+        });
+
+        if (sorted.length > 0) {
+          triggerWinnerAnnouncement(sorted[0]);
+        }
+      } catch (err) {
+        console.error('Error opening manual winner announcement:', err);
+      }
+    });
+  }
+
+  // Header "Intro Show" button
+  const replayIntroBtn = document.getElementById('replay-intro-btn');
+  if (replayIntroBtn) {
+    replayIntroBtn.addEventListener('click', async () => {
+      if (!selectedSessionId) return;
+      try {
+        const { data: standings } = await supabase
+          .from('leaderboard_view')
+          .select('*')
+          .eq('session_id', selectedSessionId);
+
+        const sorted = (standings || []).sort((a, b) => {
+          if (b.total_score !== a.total_score) return b.total_score - a.total_score;
+          return a.elapsed_seconds - b.elapsed_seconds;
+        });
+
+        if (sorted.length > 0) {
+          startSuspenseIntro(sorted[0]);
+        }
+      } catch (err) {
+        console.error('Error starting manual intro show:', err);
+      }
+    });
+  }
+
+  // Intro Skip button
+  const skipIntroBtn = document.getElementById('skip-intro-btn');
+  if (skipIntroBtn) {
+    skipIntroBtn.addEventListener('click', dismissSuspenseIntro);
+  }
+
+  // Intro Enter Console button
+  const enterBtn = document.getElementById('intro-enter-btn');
+  if (enterBtn) {
+    enterBtn.addEventListener('click', dismissSuspenseIntro);
+  }
 }
 
 // Load sessions into the select dropdown
@@ -129,14 +227,44 @@ async function fetchAndRenderStandings() {
       return a.elapsed_seconds - b.elapsed_seconds;
     });
 
+    // Save latest winner data
+    latestWinner = sorted.length > 0 ? sorted[0] : null;
+
     // Update Status Badge UI
     const badge = document.getElementById('leaderboard-status-badge');
+    const showWinnerBtn = document.getElementById('show-winner-btn');
+    const replayIntroBtn = document.getElementById('replay-intro-btn');
     if (session.status === 'completed') {
       badge.className = 'badge badge--danger';
       badge.innerText = 'SESSION COMPLETED';
+      if (showWinnerBtn) showWinnerBtn.style.display = 'inline-flex';
+      if (replayIntroBtn) replayIntroBtn.style.display = 'inline-flex';
+
+      // Automatically trigger intro show once per spectator page session load
+      if (sorted.length > 0) {
+        const introKey = `intro_played_${selectedSessionId}`;
+        const announcementKey = `announced_${selectedSessionId}`;
+        
+        if (!sessionStorage.getItem(introKey)) {
+          startSuspenseIntro(sorted[0]);
+          sessionStorage.setItem(introKey, 'true');
+          sessionStorage.setItem(announcementKey, 'true'); // mark both
+        } else if (!sessionStorage.getItem(announcementKey)) {
+          triggerWinnerAnnouncement(sorted[0]);
+          sessionStorage.setItem(announcementKey, 'true');
+        }
+      }
     } else {
       badge.className = 'badge badge--success';
       badge.innerText = 'LIVE TRACKING';
+      if (showWinnerBtn) showWinnerBtn.style.display = 'none';
+      if (replayIntroBtn) replayIntroBtn.style.display = 'none';
+
+      // Hide overlays if session is reset or active
+      const overlay = document.getElementById('winner-overlay');
+      if (overlay) overlay.style.display = 'none';
+      const intro = document.getElementById('spectator-intro');
+      if (intro) intro.style.display = 'none';
     }
 
     // Render podium elements
@@ -242,23 +370,263 @@ function setupRealtimeListeners() {
       console.log('Session state update:', payload.new);
       if (payload.new.status === 'completed') {
         showToast('GAME COMPLETED // FINAL RANKS ANNOUNCED', 'accent');
-        
-        // Confetti celebration!
-        if (typeof confetti !== 'undefined') {
-          let duration = 5 * 1000;
-          let end = Date.now() + duration;
-
-          (function frame() {
-            confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0 } });
-            confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1 } });
-
-            if (Date.now() < end) {
-              requestAnimationFrame(frame);
-            }
-          }());
-        }
       }
       await fetchAndRenderStandings();
     })
     .subscribe();
+}
+
+// Trigger the dramatic winner announcement overlay
+function triggerWinnerAnnouncement(winner) {
+  if (!winner) return;
+
+  const overlay = document.getElementById('winner-overlay');
+  if (!overlay) return;
+
+  // Set winner details
+  document.getElementById('winner-name-text').innerText = winner.team_name;
+  document.getElementById('winner-score-text').innerText = `${winner.total_score} PTS`;
+  document.getElementById('winner-cps-text').innerText = `${winner.checkpoints_completed}`;
+  document.getElementById('winner-time-text').innerText = formatTime(winner.elapsed_seconds);
+
+  // Show overlay
+  overlay.style.display = 'flex';
+
+  // 1. Create a dramatic screen flash
+  const flash = document.createElement('div');
+  flash.className = 'screen-flash';
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 400);
+
+  // 2. Play intense "popper" confetti bursts
+  runDramaticConfettiPoppers();
+}
+
+// Play intense confetti poppers and a background celebration shower
+function runDramaticConfettiPoppers() {
+  if (typeof confetti === 'undefined') return;
+
+  // Left party popper explosion
+  confetti({
+    particleCount: 120,
+    spread: 70,
+    angle: 60,
+    origin: { x: 0.15, y: 0.85 },
+    startVelocity: 60,
+    colors: ['#22a7c4', '#1a7a9e', '#d9930b', '#dc4a4a', '#ffffff'],
+    scalar: 1.2
+  });
+
+  // Right party popper explosion
+  confetti({
+    particleCount: 120,
+    spread: 70,
+    angle: 120,
+    origin: { x: 0.85, y: 0.85 },
+    startVelocity: 60,
+    colors: ['#22a7c4', '#1a7a9e', '#d9930b', '#dc4a4a', '#ffffff'],
+    scalar: 1.2
+  });
+
+  // Delayed secondary center burst
+  setTimeout(() => {
+    confetti({
+      particleCount: 80,
+      spread: 100,
+      origin: { x: 0.5, y: 0.65 },
+      startVelocity: 40,
+      colors: ['#22a7c4', '#1a7a9e', '#ffffff']
+    });
+  }, 400);
+
+  // Continuous background shower for 5 seconds
+  const end = Date.now() + 5000;
+  const colors = ['#22a7c4', '#1a7a9e', '#d9930b', '#dc4a4a'];
+
+  (function frame() {
+    confetti({
+      particleCount: 3,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0 },
+      colors: colors
+    });
+    confetti({
+      particleCount: 3,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1 },
+      colors: colors
+    });
+
+    if (Date.now() < end) {
+      requestAnimationFrame(frame);
+    }
+  }());
+}
+
+// Start the dramatic, suspenseful loading & reveal intro
+function startSuspenseIntro(winner) {
+  if (!winner) return;
+
+  const intro = document.getElementById('spectator-intro');
+  if (!intro) return;
+
+  // Clear any existing intervals first
+  if (introLogInterval) clearInterval(introLogInterval);
+  if (introCountdownInterval) clearInterval(introCountdownInterval);
+  if (introAutoDismissTimeout) clearTimeout(introAutoDismissTimeout);
+  if (introConfettiInterval) clearInterval(introConfettiInterval);
+
+  // Populate details
+  document.getElementById('intro-winner-team').innerText = winner.team_name;
+  document.getElementById('intro-winner-stats').innerText = `${winner.total_score} PTS // ${winner.checkpoints_completed} CPs`;
+
+  // Show intro overlay
+  intro.style.display = 'flex';
+
+  // Reset stages
+  document.getElementById('intro-stage-loading').style.display = 'block';
+  document.getElementById('intro-stage-countdown').style.display = 'none';
+  document.getElementById('intro-stage-reveal').style.display = 'none';
+
+  const progress = document.getElementById('intro-progress');
+  const logs = document.getElementById('intro-logs');
+  progress.style.width = '0%';
+  logs.innerHTML = '';
+
+  // Log queues
+  const logMessages = [
+    '> [INFO] ESTABLISHING TELMETRY SYNC LOOP...',
+    '> [OK] CONNECTED TO CORE CLOUD STORAGE',
+    '> [WARN] SECURE CONNECTION KEY REQUIRED // AUTHORIZED',
+    '> [OK] DOWNLOADING CRYPTOGRAPHIC ROSTER CHECKSUMS...',
+    '> [OK] FINAL RANKS DECRYPTED // LAUNCHING SIGNAL...'
+  ];
+
+  let currentLogIdx = 0;
+  introLogInterval = setInterval(() => {
+    if (currentLogIdx < logMessages.length) {
+      const logDiv = document.createElement('div');
+      logDiv.innerText = logMessages[currentLogIdx];
+      logs.appendChild(logDiv);
+      logs.scrollTop = logs.scrollHeight;
+      currentLogIdx++;
+      progress.style.width = `${(currentLogIdx / logMessages.length) * 100}%`;
+    } else {
+      clearInterval(introLogInterval);
+      setTimeout(() => {
+        runCountdownStage(winner);
+      }, 500);
+    }
+  }, 400); // 2 seconds total loading stage
+}
+
+// Run the physical shake countdown stage
+function runCountdownStage(winner) {
+  document.getElementById('intro-stage-loading').style.display = 'none';
+  const countdownStage = document.getElementById('intro-stage-countdown');
+  countdownStage.style.display = 'block';
+
+  const countdownText = document.getElementById('intro-countdown');
+  const intro = document.getElementById('spectator-intro');
+  
+  let countdownVal = 3;
+  countdownText.innerText = countdownVal;
+  triggerScreenShake(intro);
+
+  introCountdownInterval = setInterval(() => {
+    countdownVal--;
+    if (countdownVal > 0) {
+      countdownText.innerText = countdownVal;
+      triggerScreenShake(intro);
+    } else {
+      clearInterval(introCountdownInterval);
+      runRevealStage(winner);
+    }
+  }, 1000); // 3 seconds total countdown stage
+}
+
+// Add CSS shaking class and clean it up
+function triggerScreenShake(elem) {
+  elem.classList.add('screen-shake');
+  setTimeout(() => {
+    elem.classList.remove('screen-shake');
+  }, 400);
+}
+
+// Execute reveal
+function runRevealStage(winner) {
+  document.getElementById('intro-stage-countdown').style.display = 'none';
+  document.getElementById('intro-stage-reveal').style.display = 'block';
+
+  // Popper explosions
+  runIntroRevealConfetti();
+
+  // Highlight close button / enter button action
+  const enterBtn = document.getElementById('intro-enter-btn');
+  
+  // Auto-dismiss after 6 seconds of celebration
+  introAutoDismissTimeout = setTimeout(dismissSuspenseIntro, 6000);
+}
+
+// Intense graffiti page climax confetti
+function runIntroRevealConfetti() {
+  if (typeof confetti === 'undefined') return;
+
+  // Initial giant explosions
+  confetti({
+    particleCount: 160,
+    angle: 60,
+    spread: 80,
+    origin: { x: 0.1, y: 0.8 },
+    startVelocity: 65,
+    colors: ['#22a7c4', '#1a7a9e', '#d9930b', '#dc4a4a', '#ffffff'],
+    scalar: 1.3
+  });
+
+  confetti({
+    particleCount: 160,
+    angle: 120,
+    spread: 80,
+    origin: { x: 0.9, y: 0.8 },
+    startVelocity: 65,
+    colors: ['#22a7c4', '#1a7a9e', '#d9930b', '#dc4a4a', '#ffffff'],
+    scalar: 1.3
+  });
+
+  // Series of rapid smaller pops
+  introConfettiInterval = setInterval(() => {
+    confetti({
+      particleCount: 40,
+      angle: Math.random() > 0.5 ? 45 : 135,
+      spread: 60,
+      origin: { x: Math.random() > 0.5 ? 0.25 : 0.75, y: 0.75 }
+    });
+  }, 350);
+
+  setTimeout(() => clearInterval(introConfettiInterval), 4000);
+}
+
+// Gracefully dismiss intro overlay and trigger static winner overlay card
+function dismissSuspenseIntro() {
+  if (introLogInterval) clearInterval(introLogInterval);
+  if (introCountdownInterval) clearInterval(introCountdownInterval);
+  if (introAutoDismissTimeout) clearTimeout(introAutoDismissTimeout);
+  if (introConfettiInterval) clearInterval(introConfettiInterval);
+  
+  const intro = document.getElementById('spectator-intro');
+  if (intro) {
+    intro.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
+    intro.style.opacity = '0';
+    setTimeout(() => {
+      intro.style.display = 'none';
+      intro.style.opacity = '1'; // reset for future replays
+      
+      // Auto-trigger the static winner modal on the standings card now!
+      if (latestWinner) {
+        triggerWinnerAnnouncement(latestWinner);
+      }
+    }, 600);
+  }
 }
