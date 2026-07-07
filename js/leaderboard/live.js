@@ -412,10 +412,14 @@ function triggerWinnerAnnouncement(winner) {
 
 // Play intense confetti poppers and a background celebration shower
 function runDramaticConfettiPoppers() {
-  if (typeof confetti === 'undefined') return;
+  const confettiFunc = window.confetti;
+  if (typeof confettiFunc !== 'function') {
+    console.warn('confetti is not loaded or not a function');
+    return;
+  }
 
   // Left party popper explosion
-  confetti({
+  confettiFunc({
     particleCount: 120,
     spread: 70,
     angle: 60,
@@ -426,7 +430,7 @@ function runDramaticConfettiPoppers() {
   });
 
   // Right party popper explosion
-  confetti({
+  confettiFunc({
     particleCount: 120,
     spread: 70,
     angle: 120,
@@ -438,7 +442,7 @@ function runDramaticConfettiPoppers() {
 
   // Delayed secondary center burst
   setTimeout(() => {
-    confetti({
+    confettiFunc({
       particleCount: 80,
       spread: 100,
       origin: { x: 0.5, y: 0.65 },
@@ -452,14 +456,14 @@ function runDramaticConfettiPoppers() {
   const colors = ['#22a7c4', '#1a7a9e', '#d9930b', '#dc4a4a'];
 
   (function frame() {
-    confetti({
+    confettiFunc({
       particleCount: 3,
       angle: 60,
       spread: 55,
       origin: { x: 0 },
       colors: colors
     });
-    confetti({
+    confettiFunc({
       particleCount: 3,
       angle: 120,
       spread: 55,
@@ -580,10 +584,14 @@ function runRevealStage(winner) {
 
 // Intense graffiti page climax confetti
 function runIntroRevealConfetti() {
-  if (typeof confetti === 'undefined') return;
+  const confettiFunc = window.confetti;
+  if (typeof confettiFunc !== 'function') {
+    console.warn('confetti is not loaded or not a function');
+    return;
+  }
 
   // Initial giant explosions
-  confetti({
+  confettiFunc({
     particleCount: 160,
     angle: 60,
     spread: 80,
@@ -593,7 +601,7 @@ function runIntroRevealConfetti() {
     scalar: 1.3
   });
 
-  confetti({
+  confettiFunc({
     particleCount: 160,
     angle: 120,
     spread: 80,
@@ -605,7 +613,7 @@ function runIntroRevealConfetti() {
 
   // Series of rapid smaller pops
   introConfettiInterval = setInterval(() => {
-    confetti({
+    confettiFunc({
       particleCount: 40,
       angle: Math.random() > 0.5 ? 45 : 135,
       spread: 60,
