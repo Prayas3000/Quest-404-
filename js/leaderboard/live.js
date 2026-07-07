@@ -131,6 +131,14 @@ function setupUIHandlers() {
   if (enterBtn) {
     enterBtn.addEventListener('click', dismissSuspenseIntro);
   }
+
+  // Persistent Celebrate button
+  const celebrateBtn = document.getElementById('celebrate-btn');
+  if (celebrateBtn) {
+    celebrateBtn.addEventListener('click', () => {
+      runDramaticConfettiPoppers();
+    });
+  }
 }
 
 // Load sessions into the select dropdown

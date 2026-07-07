@@ -123,7 +123,7 @@ async function onScanSuccess(decodedText, decodedResult) {
       if (matchAny.is_completed) {
         showToast('This checkpoint node has already been decrypted.', 'warning', 3000, resumeScan);
       } else {
-        showToast('Out-of-order checkpoint. Verify coordinates and try again.', 'error', 3000, resumeScan);
+        showToast('Wrong order , Thiss is not your checkpoint', 'error', 3000, resumeScan);
       }
     } else {
       showToast('Invalid node code format detected.', 'error', 3000, resumeScan);
