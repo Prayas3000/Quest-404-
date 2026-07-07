@@ -172,10 +172,22 @@ async function loadSessionsList() {
     // Check URL parameters for starting session
     const params = new URLSearchParams(window.location.search);
     const urlSessId = params.get('session');
+    const autoCelebrate = params.get('celebrate') === 'true';
 
     if (urlSessId && data.find(s => s.id === urlSessId)) {
       selectedSessionId = urlSessId;
       select.value = urlSessId;
+
+      if (autoCelebrate) {
+        // Clear sessionStorage keys to force a fresh celebration intro and winner announcement
+        sessionStorage.removeItem(`intro_played_${urlSessId}`);
+        sessionStorage.removeItem(`announced_${urlSessId}`);
+
+        // Clean the celebrate parameter from the URL history
+        const cleanUrl = new URL(window.location);
+        cleanUrl.searchParams.delete('celebrate');
+        window.history.replaceState({}, '', cleanUrl);
+      }
     } else {
       // Default to the first session (usually the most recent active one)
       selectedSessionId = data[0].id;
@@ -412,7 +424,10 @@ function triggerWinnerAnnouncement(winner) {
 
 // Play intense confetti poppers and a background celebration shower
 function runDramaticConfettiPoppers() {
-  const confettiFunc = window.confetti;
+  console.log('runDramaticConfettiPoppers called');
+  showToast('🎉 Celebration command initialized!', 'success');
+
+  const confettiFunc = window.confetti || globalThis.confetti;
   if (typeof confettiFunc !== 'function') {
     console.warn('confetti is not loaded or not a function');
     return;
@@ -584,7 +599,7 @@ function runRevealStage(winner) {
 
 // Intense graffiti page climax confetti
 function runIntroRevealConfetti() {
-  const confettiFunc = window.confetti;
+  const confettiFunc = window.confetti || globalThis.confetti;
   if (typeof confettiFunc !== 'function') {
     console.warn('confetti is not loaded or not a function');
     return;

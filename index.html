@@ -405,7 +405,7 @@
         sessionStorage.removeItem(`intro_played_${data.id}`);
         sessionStorage.removeItem(`announced_${data.id}`);
         setTimeout(() => {
-          window.location.href = `leaderboard.html?session=${data.id}`;
+          window.location.href = `leaderboard.html?session=${data.id}&celebrate=true`;
         }, 1000);
       } catch (err) {
         console.error(err);
